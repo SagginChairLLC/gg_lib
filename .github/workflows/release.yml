@@ -13,9 +13,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create GitHub Release
+      - name: Create folder for release
+        run: |
+          mkdir gg_lib
+          cp -r ./* gg_lib/
+          rm -rf gg_lib/.git gg_lib/.github gg_lib/.gitignore
+
+      - name: Zip release
+        run: zip -r gg_lib.zip gg_lib
+
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
+          files: gg_lib.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -7,7 +7,6 @@ local cachedActiveResources = shared.checkResources(false)
 local function checkVersion()
     local resource = "gg_lib"
     local current = GetResourceMetadata(resource, "version", 0)
-    print(json.encode(current))
     if current then current = current:match("%d+%.%d+%.%d+") end
     if not current then
         return print(("^1Unable to read version for '%s'^0"):format(resource))
@@ -30,7 +29,7 @@ local function checkVersion()
                 local c, l = tonumber(cv[i]), tonumber(lv[i])
                 if c ~= l then
                     if c < l then
-                        return print(("^3Update available for %s (current: %s)\n%s^0"):format(resource, current, data.html_url))
+                        return print(("^3[%s] Update Available! Current: %s → Get it here:\n^3%s^0"):format(resource, current, data.html_url))
                     else
                         break
                     end

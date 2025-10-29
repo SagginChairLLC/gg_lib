@@ -13,14 +13,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create folder for release
+      - name: Prepare Release Folder
         run: |
-          mkdir gg_lib
-          cp -r ./* gg_lib/
-          rm -rf gg_lib/.git gg_lib/.github gg_lib/.gitignore
+          mkdir "gg_lib"
+          shopt -s extglob
+          cp -r !(gg_lib|.git|.github) "gg_lib/"
 
-      - name: Zip release
-        run: zip -r gg_lib.zip gg_lib
+      - name: Create ZIP Archive
+        run: |
+          zip -r "gg_lib.zip" "gg_lib"
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2

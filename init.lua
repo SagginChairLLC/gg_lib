@@ -117,8 +117,26 @@ local manifest do
     manifest = chunk()
 end
 
+-- The Bridges page stores its selections in the database; a script resolving
+-- its bridges at boot asks gg_lib for them. Best effort with a fallback --
+-- if the answer cannot be fetched, utility.lua and auto detection still work.
+local storedOverrides = {}
+
+do
+    local ok, stored
+
+    if context == "server" then
+        ok, stored = pcall(function() return exports[GG_LIB]:ggBridgeStored() end)
+    else
+        ok, stored = pcall(lib.callback.await, "gg_lib:bridge:stored", false)
+    end
+
+    if ok and type(stored) == "table" then storedOverrides = stored end
+end
+
 local function detectBridge(category)
-    local override = utility[category]
+    local fromStore = storedOverrides[category] ~= nil
+    local override = storedOverrides[category] or utility[category]
 
     if override and override ~= "" then
         local overrideState = GetResourceState(override)
@@ -129,7 +147,7 @@ local function detectBridge(category)
         end
 
         return override, {
-            source  = "override",
+            source  = fromStore and "stored" or "override",
             state   = overrideState,
             running = running,
         }

@@ -33,8 +33,18 @@ function GG_PAUSE_GUARD.release()
     GG_PAUSE_GUARD.holders = math.max(0, GG_PAUSE_GUARD.holders - 1)
 end
 
-RegisterNetEvent("gg_lib:settings:denied", function()
-    lib.notify({ description = "You do not have permission to open settings.", type = "error" })
+RegisterNetEvent("gg_lib:settings:access", function(data)
+    open = true
+    SetNuiFocus(true, true)
+    GG_PAUSE_GUARD.acquire()
+
+    SendNUIMessage({
+        action = "settings_access",
+        data = {
+            IDENTIFIER = data and data.identifier or "",
+            FILE       = data and data.file or "",
+        },
+    })
 end)
 
 RegisterNetEvent("gg_lib:settings:open", function(data)
@@ -164,9 +174,19 @@ RegisterNUICallback("admins_revoke", function(data, cb)
 end)
 
 RegisterNUICallback("logs_fetch", function(data, cb)
-    local ok, rows = lib.callback.await("gg_lib:logs:fetch", false, { limit = data and data.limit })
+    local ok, payload = lib.callback.await("gg_lib:logs:fetch", false, {
+        page   = data and data.page,
+        size   = data and data.size,
+        search = data and data.search,
+        actor  = data and data.actor,
+    })
 
-    cb({ ok = ok == true, ROWS = ok and rows or nil })
+    cb({
+        ok     = ok == true,
+        ROWS   = ok and payload.rows or nil,
+        TOTAL  = ok and payload.total or 0,
+        ACTORS = ok and payload.actors or nil,
+    })
 end)
 
 RegisterNUICallback("settings_close", function(_, cb)

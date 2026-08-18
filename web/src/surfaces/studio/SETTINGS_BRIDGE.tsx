@@ -13,6 +13,13 @@ export type BridgeCategory = {
     loaded: boolean;
     stub: boolean;
     error?: string;
+    /** Generic setting the selection is stored under. */
+    path?: string;
+    /** The stored choice; empty string means auto detect. */
+    selected?: string;
+    options?: { value: string; label: string }[];
+    /** Chosen after boot: not wired until gg_lib restarts. */
+    pending?: boolean;
 };
 
 export type Dependency = {
@@ -127,6 +134,7 @@ function Tile({
 }
 
 function sourceNote(entry: BridgeCategory): string {
+    if (entry.source === 'stored') return t('bridge_from_stored');
     if (entry.source === 'override') return t('bridge_from_override');
     if (entry.source === 'detected') return t('bridge_from_detected');
 
@@ -135,7 +143,7 @@ function sourceNote(entry: BridgeCategory): string {
 
 function providerNote(entry: Provider): string {
     if (entry.error) return entry.error;
-    if (entry.source === 'configured') return t('bridge_from_override');
+    if (entry.source === 'configured') return t('bridge_from_stored');
     if (entry.source === 'detected') return t('bridge_from_detected');
 
     return t('bridge_provider_default');
@@ -176,9 +184,14 @@ function ProviderTile({ entry, disabled, onSaved, query }: { entry: Provider; di
                     <span className="truncate font-mono text-[1.4vh] text-white/85">{highlight(entry.resource, query)}</span>
                 )}
 
-                <span className={`truncate text-[1.15vh] ${entry.running ? 'text-white/30' : 'text-red-300/80'}`}>
-                    {entry.error ?? (entry.path ? entry.resource : providerNote(entry))}
-                </span>
+                {entry.error ? (
+                    <span className="truncate text-[1.15vh] text-red-300/80">{entry.error}</span>
+                ) : (
+                    <span className="truncate text-[1.15vh] text-white/30">
+                        <span className={`font-mono font-semibold ${entry.source === 'detected' ? 'text-primary' : 'text-white/90'}`}>{entry.resource}</span>
+                        {' '}— {providerNote(entry)}
+                    </span>
+                )}
             </div>
 
             <i className={`fas ${busy ? 'fa-spinner fa-spin' : look.icon} flex-shrink-0 text-[1.4vh] ${busy ? 'text-white/40' : look.color}`} />
@@ -186,6 +199,67 @@ function ProviderTile({ entry, disabled, onSaved, query }: { entry: Provider; di
     );
 }
 
+function BridgeTile({ entry, disabled, onSaved, query }: { entry: BridgeCategory; disabled: boolean; onSaved: () => void; query: string }) {
+    const [busy, setBusy] = useState(false);
+    const look = tone(entry.loaded, entry.stub);
+
+    const change = async (next: string) => {
+        if (!entry.path || next === (entry.selected ?? '')) return;
+
+        setBusy(true);
+
+        try {
+            await fetchNui('bridge_set_provider', { path: entry.path, value: next });
+            onSaved();
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div className={`flex min-w-0 items-center gap-[1vh] rounded-[0.5vh] border ${look.border} bg-neutral-950/40 px-[1.1vh] py-[0.8vh]`}>
+            <i className={`fas ${CATEGORY_ICONS[entry.category] ?? 'fa-plug'} w-[2vh] flex-shrink-0 text-[1.3vh] text-white/30`} />
+
+            <div className="flex min-w-0 flex-1 flex-col gap-[0.3vh]">
+                <span className="text-[1.1vh] font-semibold uppercase tracking-widest text-white/35">{entry.category}</span>
+
+                {entry.path && entry.options && !disabled ? (
+                    <SettingControl
+                        def={{
+                            type: 'enum',
+                            options: (entry.options ?? []).map((option) =>
+                                option.value === '' && !entry.stub && (entry.selected ?? '') === ''
+                                    ? { ...option, label: `${option.label} (${entry.resource})` }
+                                    : option,
+                            ),
+                        }}
+                        value={entry.selected ?? ''}
+                        disabled={busy}
+                        onChange={(next) => void change(String(next))}
+                    />
+                ) : (
+                    <span className="truncate font-mono text-[1.4vh] text-white/85">{entry.stub ? t('bridge_none') : highlight(entry.resource, query)}</span>
+                )}
+
+                {entry.pending ? (
+                    <span className="truncate text-[1.15vh] text-primary/80">{t('bridge_pending')}</span>
+                ) : entry.error ? (
+                    <span className="truncate text-[1.15vh] text-red-300/80">{entry.error}</span>
+                ) : (
+                    <span className="truncate text-[1.15vh] text-white/30">
+                        {t('bridge_wired_to')}{' '}
+                        <span className={`font-mono font-semibold ${entry.stub ? 'text-white/45' : entry.source === 'detected' ? 'text-primary' : 'text-white/90'}`}>
+                            {entry.stub ? t('bridge_none') : entry.resource}
+                        </span>
+                        {' '}— {sourceNote(entry)}
+                    </span>
+                )}
+            </div>
+
+            <i className={`fas ${busy ? 'fa-spinner fa-spin' : look.icon} flex-shrink-0 text-[1.4vh] ${busy ? 'text-white/40' : look.color}`} />
+        </div>
+    );
+}
 export default function SETTINGS_BRIDGE({ query }: { query: string }) {
     const [data, setData] = useState<BridgeData | null>(null);
     const [busy, setBusy] = useState(false);
@@ -281,16 +355,7 @@ export default function SETTINGS_BRIDGE({ query }: { query: string }) {
                     <Section icon="fa-plug" title={t('bridge_title')} help={t('bridge_help')}>
                         <div className="grid gap-[0.8vh]" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
                             {data.bridges.map((entry) => (
-                                <Tile
-                                    key={entry.category}
-                                    icon={CATEGORY_ICONS[entry.category] ?? 'fa-plug'}
-                                    label={entry.category}
-                                    value={entry.stub ? t('bridge_none') : entry.resource}
-                                    note={entry.error ?? sourceNote(entry)}
-                                    ok={entry.loaded}
-                                    muted={entry.stub}
-                                    query={query}
-                                />
+                                <BridgeTile key={entry.category} entry={entry} disabled={!canEdit} onSaved={reload} query={query} />
                             ))}
                         </div>
                     </Section>

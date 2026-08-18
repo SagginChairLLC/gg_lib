@@ -7,6 +7,7 @@ import { isEnvBrowser } from './lib/fetchNui';
 import { buildMockSettingsScripts } from './data/mockSettings';
 import { openSettings } from './data/useSettings';
 import { restoreDevSurface } from './lib/devSurface';
+import { registerScreenshotProcessor } from './lib/screenshot';
 
 if (isEnvBrowser()) {
     const root = document.getElementById('root');
@@ -19,6 +20,19 @@ if (isEnvBrowser()) {
     openSettings(buildMockSettingsScripts(), true, null);
     restoreDevSurface();
 }
+
+// Chromium fires this when a ResizeObserver cannot deliver every notification
+// inside one frame. It is a benign scheduling note from the animation
+// libraries' internal observers, not a fault — but CEF prints it as an error
+// on every editor open, so it is silenced by exact message.
+window.addEventListener('error', (event) => {
+    if (typeof event.message === 'string' && event.message.includes('ResizeObserver loop')) {
+        event.stopImmediatePropagation();
+        event.preventDefault();
+    }
+});
+
+registerScreenshotProcessor();
 
 createRoot(document.getElementById('root')!).render(
     <StrictMode>

@@ -131,18 +131,74 @@ local function preview(value)
     return encoded
 end
 
-function Logs.recent(limit)
-    limit = math.min(math.max(tonumber(limit) or 200, 1), 500)
+local PAGE_SIZE = 25
+local MAX_PAGE_SIZE = 100
+
+--- One page of history, newest first.
+---
+--- opts: page (1 based), size, search (matches actor, resource or path),
+---       actor (exact match, from the filter list)
+---
+--- Returns rows, total, actors -- total drives the pager, and actors fills the
+--- filter without a second round trip.
+function Logs.page(opts)
+    opts = type(opts) == "table" and opts or {}
+
+    local size   = math.min(math.max(tonumber(opts.size) or PAGE_SIZE, 1), MAX_PAGE_SIZE)
+    local page   = math.max(math.floor(tonumber(opts.page) or 1), 1)
+    local offset = (page - 1) * size
+
+    local search = type(opts.search) == "string" and opts.search:gsub("^%s+", ""):gsub("%s+$", "") or ""
+    local actor  = type(opts.actor) == "string" and opts.actor ~= "" and opts.actor or nil
+
+    -- Built rather than fixed, so an unused filter costs nothing in the query
+    -- plan instead of being a no-op comparison on every row.
+    local where, args = {}, {}
+
+    if search ~= "" then
+        local like = "%" .. search .. "%"
+        where[#where + 1] = "(actor LIKE ? OR resource LIKE ? OR path LIKE ?)"
+        args[#args + 1], args[#args + 2], args[#args + 3] = like, like, like
+    end
+
+    if actor then
+        where[#where + 1] = "actor = ?"
+        args[#args + 1] = actor
+    end
+
+    local clause = #where > 0 and (" WHERE " .. table.concat(where, " AND ")) or ""
+
+    local rowArgs = {}
+    for index = 1, #args do rowArgs[index] = args[index] end
+    rowArgs[#rowArgs + 1] = size
+    rowArgs[#rowArgs + 1] = offset
 
     local ok, rows = pcall(MySQL.query.await, [[
         SELECT resource, path, action, old_value, new_value, actor,
                DATE_FORMAT(changed_at, '%Y-%m-%d %H:%i') AS changed_at
         FROM gg_studio_log
+    ]] .. clause .. [[
         ORDER BY id DESC
-        LIMIT ?
-    ]], { limit })
+        LIMIT ? OFFSET ?
+    ]], rowArgs)
 
-    if not ok then return {} end
+    if not ok then return {}, 0, {} end
+
+    local counted, total = pcall(MySQL.scalar.await,
+        "SELECT COUNT(*) FROM gg_studio_log" .. clause, args)
+
+    -- Every name that has ever changed something, for the filter. Cheap enough
+    -- at the 5000 row ceiling the table is trimmed to.
+    local listed, actors = pcall(MySQL.query.await, [[
+        SELECT DISTINCT actor FROM gg_studio_log
+        WHERE actor IS NOT NULL AND actor <> ''
+        ORDER BY actor
+    ]])
+
+    local names = {}
+    if listed then
+        for _, row in ipairs(actors or {}) do names[#names + 1] = row.actor end
+    end
 
     local out = {}
 
@@ -158,7 +214,7 @@ function Logs.recent(limit)
         }
     end
 
-    return out
+    return out, counted and total or 0, names
 end
 
 lib.callback.register("gg_lib:logs:fetch", function(source, data)
@@ -167,5 +223,7 @@ lib.callback.register("gg_lib:logs:fetch", function(source, data)
         return false
     end
 
-    return true, Logs.recent(data and data.limit)
+    local rows, total, actors = Logs.page(data)
+
+    return true, { rows = rows, total = total, actors = actors }
 end)

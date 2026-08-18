@@ -15,10 +15,10 @@ local PSEUDO = GenericSettings.resource
 local groups = {
     { id = "appearance", label = "Appearance", icon = "fa-palette" },
     { id = "general",    label = "General",    icon = "fa-sliders" },
-    { id = "interface",  label = "Interface",  icon = "fa-bell",      help = "Who draws notifications, progress bars and prompts for every GG script" },
     { id = "popup",      label = "Popups",     icon = "fa-comment",   help = "gg.popup, shared by every script that shows one" },
     { id = "reset",      label = "Daily Reset", icon = "fa-clock",    help = "When daily progress rolls over, for every script that has any" },
     { id = "fallback",   label = "Fallbacks",  icon = "fa-life-ring", help = "Used when a script's own model fails to load" },
+    { id = "screenshot", label = "Screenshots", icon = "fa-camera",    help = "Where vehicle images are captured and where they are stored" },
 }
 
 local timezone_options = {}
@@ -262,6 +262,37 @@ define("general.number_format", {
 })
 
 --------------------------------------------------
+-- MARK: Bridge Overrides
+--------------------------------------------------
+-- Which resource each bridge category is forced to, edited from the Bridges
+-- page. Empty means auto detect. The group is deliberately not listed above,
+-- so these never render as a generic tab.
+
+local bridgeManifest do
+    local raw = LoadResourceFile(GetCurrentResourceName(), "bridge/manifest.lua")
+    local chunk = raw and load(raw, "@bridge/manifest.lua", "t")
+    local ok, value = pcall(chunk or function() end)
+
+    bridgeManifest = ok and type(value) == "table" and value or { categories = {}, category_order = {} }
+end
+
+for _, category in ipairs(bridgeManifest.category_order or {}) do
+    local options = { { value = "", label = "Auto detect" } }
+
+    for _, candidate in ipairs(bridgeManifest.categories[category] or {}) do
+        options[#options + 1] = { value = candidate, label = candidate }
+    end
+
+    define(("bridge.%s"):format(category), {
+        group   = "bridge",
+        label   = category:sub(1, 1):upper() .. category:sub(2),
+        type    = "enum",
+        options = options,
+        default = "",
+    })
+end
+
+--------------------------------------------------
 -- MARK: Interface
 --------------------------------------------------
 
@@ -302,6 +333,19 @@ define("interface.progressbar", {
     type    = "enum",
     options = BAR_OPTIONS,
     default = "ox",
+})
+
+define("interface.contextmenu", {
+    group   = "interface",
+    label   = "Context Menu",
+    help    = "Who draws gg.menu -- menus, inputs and alerts.",
+    type    = "enum",
+    options = {
+        { value = "auto",   label = "Auto detect" },
+        { value = "ox",     label = "ox_lib" },
+        { value = "lation", label = "lation_ui" },
+    },
+    default = "auto",
 })
 
 define("interface.textui", {
@@ -364,6 +408,123 @@ define("fallback.ped", {
     help    = "Spawned when a script's configured ped model is missing or fails to load.",
     type    = "string",
     default = "a_m_m_business_01",
+})
+
+--------------------------------------------------
+-- MARK: Minigames
+--------------------------------------------------
+-- The default tuning for each game in the set. A script can override any of
+-- these per call; what is set here is what an unconfigured call gets.
+
+define("minigames.skillcheck", {
+    group  = "minigames",
+    label  = "Skill Check",
+    help   = "A needle sweeps a ring -- press the key while it crosses the marked arc.",
+    type   = "object",
+    fields = {
+        { key = "rounds", label = "Rounds",       type = "integer", min = 1, max = 10 },
+        { key = "zone",   label = "Arc Size",     type = "integer", min = 8, max = 90, suffix = "deg" },
+        { key = "speed",  label = "Needle Speed", type = "integer", min = 60, max = 600, suffix = "deg/s" },
+        { key = "key",    label = "Key",          type = "string", max_length = 10 },
+    },
+    default = { rounds = 3, zone = 40, speed = 220, key = "E" },
+})
+
+define("minigames.keymash", {
+    group  = "minigames",
+    label  = "Key Mash",
+    help   = "Mash the key to fill the bar before the clock empties.",
+    type   = "object",
+    fields = {
+        { key = "time",  label = "Time Limit", type = "integer", min = 2, max = 30, suffix = "s" },
+        { key = "decay", label = "Drain",      type = "integer", min = 0, max = 100, suffix = "%/s" },
+        { key = "gain",  label = "Per Press",  type = "integer", min = 1, max = 50, suffix = "%" },
+        { key = "key",   label = "Key",        type = "string", max_length = 10 },
+    },
+    default = { time = 6, decay = 22, gain = 7, key = "E" },
+})
+
+define("minigames.timing", {
+    group  = "minigames",
+    label  = "Timing Bar",
+    help   = "Stop the sweeping marker inside the zone. The zone shrinks each round.",
+    type   = "object",
+    fields = {
+        { key = "rounds", label = "Rounds",      type = "integer", min = 1, max = 10 },
+        { key = "zone",   label = "Zone Size",   type = "integer", min = 4, max = 40, suffix = "%" },
+        { key = "speed",  label = "Sweep Speed", type = "number", min = 0.3, max = 3, step = 0.05, suffix = "bars/s" },
+        { key = "key",    label = "Key",         type = "string", max_length = 10 },
+    },
+    default = { rounds = 3, zone = 16, speed = 0.9, key = "E" },
+})
+
+define("minigames.sequence", {
+    group  = "minigames",
+    label  = "Key Sequence",
+    help   = "Type the shown keys in order before the timer empties.",
+    type   = "object",
+    fields = {
+        { key = "length", label = "Keys",       type = "integer", min = 3, max = 12 },
+        { key = "time",   label = "Time Limit", type = "integer", min = 2, max = 30, suffix = "s" },
+    },
+    default = { length = 6, time = 5 },
+})
+
+define("minigames.memory", {
+    group  = "minigames",
+    label  = "Memory Grid",
+    help   = "Tiles flash and go dark -- click every tile that lit up.",
+    type   = "object",
+    fields = {
+        { key = "size",    label = "Grid",       type = "integer", min = 3, max = 6 },
+        { key = "flashes", label = "Tiles",      type = "integer", min = 2, max = 12 },
+        { key = "time",    label = "Time Limit", type = "integer", min = 3, max = 30, suffix = "s" },
+    },
+    default = { size = 4, flashes = 5, time = 8 },
+})
+
+define("minigames.connect", {
+    group  = "minigames",
+    label  = "Connect Circuits",
+    help   = "Drag a wire between every pair of matching dots without crossing.",
+    type   = "object",
+    fields = {
+        { key = "pairs", label = "Circuits",   type = "integer", min = 3, max = 5 },
+        { key = "time",  label = "Time Limit", type = "integer", min = 10, max = 120, suffix = "s" },
+    },
+    default = { pairs = 4, time = 45 },
+})
+
+define("minigames.wordwiz", {
+    group  = "minigames",
+    label  = "Word Scramble",
+    help   = "Unscramble the word and type it before the timer empties.",
+    type   = "object",
+    fields = {
+        { key = "length", label = "Word Length", type = "integer", min = 4, max = 8 },
+        { key = "time",   label = "Time Limit",  type = "integer", min = 3, max = 30, suffix = "s" },
+    },
+    default = { length = 6, time = 10 },
+})
+
+--------------------------------------------------
+-- MARK: Screenshots
+--------------------------------------------------
+
+define("screenshot.upload_key", {
+    group   = "screenshot",
+    label   = "Upload API Key",
+    help    = "Leave empty to save images into the script's own web folder instead of uploading them.",
+    type    = "string",
+    default = "",
+})
+
+define("screenshot.location", {
+    group   = "screenshot",
+    label   = "Capture Spot",
+    help    = "Where vehicles are spawned to be photographed. Somewhere flat, empty and far from players.",
+    type    = "coords",
+    default = { x = -1324.13, y = -2257.61, z = 48.77, heading = 260.0 },
 })
 
 --------------------------------------------------
@@ -461,6 +622,7 @@ function GenericSettings.describe()
             help    = def.help,
             type    = def.type,
             group   = def.group,
+            fields  = def.fields,
             options    = def.options,
             min        = def.min,
             max        = def.max,

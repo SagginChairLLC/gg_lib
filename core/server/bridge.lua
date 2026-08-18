@@ -30,7 +30,11 @@ local function running(name)
 end
 
 local function detect(category)
-    local override = utility[category]
+    local stored = GenericSettings and GenericSettings.get
+        and GenericSettings.get(("bridge.%s"):format(category))
+
+    local override = (type(stored) == "string" and stored ~= "" and stored) or utility[category]
+    local fromStore = type(stored) == "string" and stored ~= ""
 
     if override and override ~= "" then
         local up = running(override)
@@ -38,7 +42,7 @@ local function detect(category)
         return {
             category = category,
             resource = override,
-            source   = "override",
+            source   = fromStore and "stored" or "override",
             state    = up and "started" or "missing",
             loaded   = up,
             stub     = false,
@@ -196,15 +200,27 @@ local function providerRows()
         }
     end
 
-    local usingLation = running(CONTEXT_PREFERRED)
+    -- The context menu: a stored choice of ox_lib or lation_ui, with auto
+    -- preferring lation_ui whenever it is running.
+    local menuChoice = GenericSettings.get("interface.contextmenu")
+    local menuAuto   = menuChoice ~= "ox" and menuChoice ~= "lation"
+    local menuLation = menuChoice == "lation" or (menuAuto and running(CONTEXT_PREFERRED))
+    local menuUp     = not menuLation or running(CONTEXT_PREFERRED)
 
     rows[#rows + 1] = {
         id       = "context",
         label    = "Context Menu",
-        provider = usingLation and CONTEXT_PREFERRED or "ox",
-        resource = usingLation and CONTEXT_PREFERRED or "ox_lib",
-        source   = "detected",
-        running  = true,
+        path     = "interface.contextmenu",
+        options  = {
+            { value = "auto",   label = "Auto detect" },
+            { value = "ox",     label = "ox_lib" },
+            { value = "lation", label = "lation_ui" },
+        },
+        provider = menuAuto and "auto" or menuChoice,
+        resource = menuLation and CONTEXT_PREFERRED or "ox_lib",
+        source   = menuAuto and "detected" or "configured",
+        running  = menuUp,
+        error    = not menuUp and ("requires '%s', which is not started"):format(CONTEXT_PREFERRED) or nil,
     }
 
     return rows
@@ -232,7 +248,31 @@ lib.callback.register("gg_lib:bridge:fetch", function(source)
     return true, {
         dependencies = dependencyRows(),
         interface    = providerRows(),
-        bridges      = own or {},
+        bridges      = (function()
+            local rows = {}
+
+            for index, row in ipairs(own or {}) do
+                local copy = {}
+                for key, value in pairs(row) do copy[key] = value end
+
+                local stored = GenericSettings.get(("bridge.%s"):format(row.category))
+                copy.selected = type(stored) == "string" and stored or ""
+                copy.path     = ("bridge.%s"):format(row.category)
+
+                local options = { { value = "", label = "Auto detect" } }
+                for _, candidate in ipairs((manifest.categories or {})[row.category] or {}) do
+                    options[#options + 1] = { value = candidate, label = candidate }
+                end
+                copy.options = options
+
+                -- A selection made after boot is not wired until a restart.
+                copy.pending = copy.selected ~= "" and copy.selected ~= copy.resource
+
+                rows[index] = copy
+            end
+
+            return rows
+        end)(),
     }
 end)
 
@@ -241,6 +281,11 @@ end)
 --------------------------------------------------
 
 local EDITABLE = {
+    ["interface.contextmenu"] = true,
+    ["bridge.framework"] = true,
+    ["bridge.inventory"] = true,
+    ["bridge.target"]    = true,
+    ["bridge.dispatch"]  = true,
     ["interface.notifications"] = true,
     ["interface.progressbar"]   = true,
     ["interface.textui"]        = true,
@@ -260,4 +305,29 @@ lib.callback.register("gg_lib:bridge:setProvider", function(source, data)
     end
 
     return true
+end)
+
+--------------------------------------------------
+-- MARK: Stored overrides for consumers
+--------------------------------------------------
+-- Every GG script resolves its bridges at its own boot; these hand it the
+-- selections made on the Bridges page. Server VMs call the export, client VMs
+-- the callback.
+
+local function storedOverrides()
+    local out = {}
+
+    for _, category in ipairs((manifest and manifest.category_order) or {}) do
+        local stored = GenericSettings.get(("bridge.%s"):format(category))
+
+        if type(stored) == "string" and stored ~= "" then out[category] = stored end
+    end
+
+    return out
+end
+
+exports("ggBridgeStored", storedOverrides)
+
+lib.callback.register("gg_lib:bridge:stored", function()
+    return storedOverrides()
 end)

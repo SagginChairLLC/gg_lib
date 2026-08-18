@@ -1,8 +1,19 @@
 gg.menu = gg.menu or {}
 
+-- Which UI draws menus is a stored setting; auto prefers lation_ui when it is
+-- running. Scripts without the settings module fall back to auto detection.
+local function useLation()
+    local choice = settings and settings.generic and settings.generic.get("interface.contextmenu")
+
+    if choice == "ox" then return false end
+    if choice == "lation" then return true end
+
+    return GetResourceState("lation_ui") == "started"
+end
+
 gg.menu.open = function(data, options)
     local id, title, menu = data.id, data.title, data.menu
-    if GetResourceState("lation_ui") == "started" then
+    if useLation() then
         exports.lation_ui:registerMenu({
             id = id,
             title = title,
@@ -39,7 +50,7 @@ gg.menu.inputMenu = function(data)
     local max         = tonumber(quantity.max) or 999999
     local result      = false
 
-    if GetResourceState("lation_ui") == "started" then
+    if useLation() then
         result = exports.lation_ui:input({
             title = title,
             options = {
@@ -72,7 +83,7 @@ gg.menu.inputMenu = function(data)
 end
 
 gg.menu.alertDialog = function(data)
-    if GetResourceState("lation_ui") == "started" then
+    if useLation() then
         return exports.lation_ui:alert(data)
     else
         return lib.alertDialog(data)
@@ -80,7 +91,7 @@ gg.menu.alertDialog = function(data)
 end
 
 gg.menu.getOpenContextMenu = function()
-    if GetResourceState("lation_ui") == "started" then
+    if useLation() then
         return exports.lation_ui:getOpenMenu()
     else
         return lib.getOpenContextMenu()

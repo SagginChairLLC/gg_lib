@@ -198,89 +198,30 @@ function optionLabel(option: SettingOption): string {
     return typeof option === 'string' ? option : option.label;
 }
 
-const ENUM_DRAWER_THRESHOLD = 6;
 
 function EnumControl({ def, value, onChange, disabled }: ControlProps) {
-    const [open, setOpen] = useState(false);
-    const [openUp, setOpenUp] = useState(false);
-    const buttonRef = useRef<HTMLButtonElement | null>(null);
     const options = def.options ?? [];
     const selected = options.find((option) => optionValue(option) === value);
 
-    if (options.length > ENUM_DRAWER_THRESHOLD) {
-        return (
-            <DrawerTrigger
-                disabled={disabled}
-                preview={<i className="fas fa-list w-[1.8vh] flex-shrink-0 text-center text-[1.3vh] text-white/35" />}
-                label={selected ? optionLabel(selected) : String(value ?? '')}
-                onOpen={() =>
-                    openPicker({
-                        title: t('picker_search'),
-                        columns: 5,
-                        value: String(value ?? ''),
-                        allowCustom: false,
-                        customHint: '',
-                        items: options.map((option) => ({ id: optionValue(option), label: optionLabel(option) })),
-                        onSelect: (next) => onChange(String(next)),
-                    })
-                }
-            />
-        );
-    }
-
-    const toggle = () => {
-        if (disabled) return;
-
-        const rect = buttonRef.current?.getBoundingClientRect();
-        setOpenUp(!!rect && rect.bottom > window.innerHeight * 0.62);
-        setOpen((current) => !current);
-    };
-
+    // Always the side drawer: an inline panel clips against the scrolling
+    // settings list, and the drawer is the one place options get real room.
     return (
-        <div className="relative w-full">
-            <button
-                ref={buttonRef}
-                type="button"
-                onClick={toggle}
-                disabled={disabled}
-                className={`${INPUT} flex items-center justify-between gap-[1vh] text-left ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-white/25'} ${open ? 'border-primary/60' : ''}`}
-            >
-                <span className={`truncate ${selected ? 'text-white/90' : 'text-white/35'}`}>{selected ? optionLabel(selected) : String(value ?? '')}</span>
-                <i className={`fas fa-chevron-down flex-shrink-0 text-[1.1vh] text-white/40 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-            </button>
-
-            {open && (
-                <>
-                    <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-                    <div
-                        className={`absolute left-0 right-0 z-50 max-h-[24vh] overflow-y-auto overscroll-contain rounded-[0.6vh] border border-white/15 bg-neutral-900 py-[0.4vh] shadow-2xl ${
-                            openUp ? 'bottom-[calc(100%+0.4vh)]' : 'top-[calc(100%+0.4vh)]'
-                        }`}
-                    >
-                        {options.map((option) => {
-                            const isActive = optionValue(option) === value;
-
-                            return (
-                                <button
-                                    key={optionValue(option)}
-                                    type="button"
-                                    onClick={() => {
-                                        onChange(optionValue(option));
-                                        setOpen(false);
-                                    }}
-                                    className={`flex w-full items-center justify-between gap-[1vh] px-[1.2vh] py-[0.7vh] text-left text-[1.45vh] transition-colors ${
-                                        isActive ? 'bg-primary/15 text-primary' : 'text-white/80 hover:bg-white/5'
-                                    }`}
-                                >
-                                    <span className="truncate">{optionLabel(option)}</span>
-                                    {isActive && <i className="fas fa-check flex-shrink-0 text-[1.2vh]" />}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </>
-            )}
-        </div>
+        <DrawerTrigger
+            disabled={disabled}
+            preview={<i className="fas fa-list w-[1.8vh] flex-shrink-0 text-center text-[1.3vh] text-white/35" />}
+            label={selected ? optionLabel(selected) : String(value ?? '')}
+            onOpen={() =>
+                openPicker({
+                    title: t('picker_search'),
+                    columns: 5,
+                    value: String(value ?? ''),
+                    allowCustom: false,
+                    customHint: '',
+                    items: options.map((option) => ({ id: optionValue(option), label: optionLabel(option) })),
+                    onSelect: (next) => onChange(String(next)),
+                })
+            }
+        />
     );
 }
 

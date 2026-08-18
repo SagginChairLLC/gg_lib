@@ -7,6 +7,7 @@ import {
     ADMINS_PAGE,
     LOGS_PAGE,
     BRIDGE_PAGE,
+    MINIGAMES_PAGE,
     GENERIC_RESOURCE,
     THEME_PATH,
     applyDraftLocally,
@@ -26,14 +27,15 @@ import SETTINGS_ADMINS from './SETTINGS_ADMINS';
 import SETTINGS_RESET from './SETTINGS_RESET';
 import SETTINGS_LOGS from './SETTINGS_LOGS';
 import SETTINGS_BRIDGE from './SETTINGS_BRIDGE';
+import SETTINGS_MINIGAMES from './SETTINGS_MINIGAMES';
 import SETTINGS_PICKER from './SETTINGS_PICKER';
 import { usePicker } from '@/data/usePicker';
 import { highlight, matchesQuery, previewValue, typeHint } from './settings-utils';
 
-type SaveResponse = { ok: boolean; errors?: Record<string, string>; changed?: string[] };
-type RefreshResponse = { ok: boolean; SCRIPTS?: SettingsScript[]; CAN_EDIT?: boolean; UI_THEME?: string; UI_FADE?: boolean; UI_FADE_TO?: number };
+export type SaveResponse = { ok: boolean; errors?: Record<string, string>; changed?: string[] };
+export type RefreshResponse = { ok: boolean; SCRIPTS?: SettingsScript[]; CAN_EDIT?: boolean; UI_THEME?: string; UI_FADE?: boolean; UI_FADE_TO?: number };
 
-function applyRefresh(response: RefreshResponse | undefined) {
+export function applyRefresh(response: RefreshResponse | undefined) {
     if (!response?.ok || !response.SCRIPTS) return;
 
     applyScripts(response.SCRIPTS, response.CAN_EDIT);
@@ -310,7 +312,8 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
     const adminsPage = activeResource === ADMINS_PAGE;
     const logsPage = activeResource === LOGS_PAGE;
     const bridgePage = activeResource === BRIDGE_PAGE;
-    const isPage = adminsPage || logsPage || bridgePage;
+    const minigamesPage = activeResource === MINIGAMES_PAGE;
+    const isPage = adminsPage || logsPage || bridgePage || minigamesPage;
 
     const jobScripts = scripts.filter((candidate) => !candidate.generic);
     const genericScripts = scripts.filter((candidate) => candidate.generic);
@@ -613,6 +616,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                                 {renderPageItem(ADMINS_PAGE, 'fa-user-shield', t('admins_title'), adminsPage)}
                                 {renderPageItem(LOGS_PAGE, 'fa-clock-rotate-left', t('logs_title'), logsPage)}
                                 {renderPageItem(BRIDGE_PAGE, 'fa-plug', t('bridge_title'), bridgePage)}
+                                {renderPageItem(MINIGAMES_PAGE, 'fa-gamepad', t('minigames_title'), minigamesPage)}
                             </>
                         )}
                     </div>
@@ -628,6 +632,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                 {adminsPage && <SETTINGS_ADMINS canEdit={canEdit} query={query} />}
                 {logsPage && <SETTINGS_LOGS query={query} />}
                 {bridgePage && <SETTINGS_BRIDGE query={query} />}
+                {minigamesPage && <SETTINGS_MINIGAMES query={query} />}
 
                 {!isPage && detailEntry && (
                     <DetailPane

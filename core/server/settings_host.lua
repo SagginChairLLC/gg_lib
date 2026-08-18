@@ -89,9 +89,15 @@ local function openFor(source, focus)
         return
     end
 
+    -- Open to everyone. Someone without access gets a page telling them what
+    -- their identifier is and where to put it, which is the question they were
+    -- about to ask anyway -- and a silent refusal looks like a broken command.
     if not canView(source) then
-        print(("^3[gg_lib] blocked settings open from %s -- not an admin^0"):format(actorFor(source)))
-        TriggerClientEvent("gg_lib:settings:denied", source)
+        TriggerClientEvent("gg_lib:settings:access", source, {
+            identifier = Admins.license2(source) or "",
+            file       = ("%s/server_config.lua"):format(GetResourcePath(GetCurrentResourceName()) or "gg_lib"),
+        })
+
         return
     end
 

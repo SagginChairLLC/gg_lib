@@ -69,3 +69,21 @@ export function previewValue(value: unknown): string {
 
     return `${Object.keys(value as Record<string, unknown>).length} values`;
 }
+
+/**
+ * A styled hover tooltip. Native `title` bubbles are unreliable inside NUI, so
+ * icon-only buttons wrap themselves in this instead: hover shows a small label
+ * above the control saying what it does.
+ */
+export function Tip({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <span className="group/tip relative inline-flex">
+            {children}
+
+            <span className="pointer-events-none absolute bottom-[calc(100%+0.7vh)] left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-[0.5vh] border border-white/15 bg-neutral-900 px-[1vh] py-[0.5vh] text-[1.2vh] font-semibold text-white/85 opacity-0 shadow-[0_0.6vh_1.8vh_rgba(0,0,0,0.6)] transition-opacity duration-150 group-hover/tip:opacity-100">
+                {label}
+                <span className="absolute left-1/2 top-full h-[0.7vh] w-[0.7vh] -translate-x-1/2 -translate-y-[0.4vh] rotate-45 border-b border-r border-white/15 bg-neutral-900" />
+            </span>
+        </span>
+    );
+}

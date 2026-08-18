@@ -3,15 +3,17 @@
 --------------------------------------------------
 
 return {
+    -- ox and qb candidates sit LAST in every list on purpose: plenty of servers
+    -- run them as dependencies of the thing they actually use, so any other
+    -- started resource wins auto detection first. qbx_core stays ahead of
+    -- qb-core because a qbox server also runs a qb-core shim.
     categories = {
         framework = {
+            "es_extended",
             "qbx_core",
             "qb-core",
-            "es_extended",
         },
         inventory = {
-            "ox_inventory",
-            "qb-inventory",
             "qs-inventory",
             "ps-inventory",
             "origen_inventory",
@@ -22,6 +24,8 @@ return {
             "tgiann-inventory",
             "ak47_inventory",
             "one_inventory",
+            "ox_inventory",
+            "qb-inventory",
         },
         target = {
             "ox_target",
@@ -58,6 +62,7 @@ return {
         "pedManager",
         "player",
         "popup",
+        "minigames",
         "vehicleManager",
     },
 }

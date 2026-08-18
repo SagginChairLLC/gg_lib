@@ -53,6 +53,7 @@ export type SettingEntry = {
 export const ADMINS_PAGE = '__gg_admins__';
 export const LOGS_PAGE = '__gg_logs__';
 export const BRIDGE_PAGE = '__gg_bridge__';
+export const MINIGAMES_PAGE = '__gg_minigames__';
 
 export const GENERIC_RESOURCE = 'gg_studio';
 export const THEME_PATH = 'theme.primary_color';

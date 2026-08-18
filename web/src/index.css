@@ -78,3 +78,47 @@ input {
     content-visibility: auto;
     contain-intrinsic-size: auto 12vh;
 }
+
+/*
+ * Minigame glow language: active elements carry a colored drop-shadow in the
+ * studio accent, success flips it emerald, failure red. Floating games have no
+ * card behind them, so the glow is what separates them from the world.
+ */
+.gg-glow {
+    filter: drop-shadow(0 0 0.5vh rgb(var(--primary) / 0.9));
+}
+
+.gg-glow-strong {
+    filter: drop-shadow(0 0 1.1vh rgb(var(--primary) / 0.8));
+}
+
+.gg-glow-ok {
+    filter: drop-shadow(0 0 0.6vh rgba(52, 211, 153, 0.9));
+}
+
+.gg-glow-err {
+    filter: drop-shadow(0 0 0.6vh rgba(248, 113, 113, 0.9));
+}
+
+/* Lifts floating game elements off the scene without drawing a card. */
+.gg-float {
+    filter: drop-shadow(0 0 2.2vh rgba(0, 0, 0, 0.85));
+}
+
+@keyframes gg-key-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+}
+
+.gg-pulse {
+    animation: gg-key-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes gg-tile-in {
+    from { transform: scale(0.4); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+.gg-tile-in {
+    animation: gg-tile-in 0.28s ease-out backwards;
+}

@@ -58,12 +58,12 @@ it starts — there is no `.sql` file to import.
 
 Script Studio is admin-only. Nobody can open it until you add yourself.
 
-**Open `server_config.lua` and put your license in the list:**
+**Copy `server_config.example.lua` to `server_config.lua`, then put your license in the list:**
 
 ```lua
 return {
     admins = {
-        "license2:6e713bc45df69b1338e94c292948ef0053ffb638",
+        "license2:put_your_own_license_here",
     },
 
     ace = true,
@@ -73,7 +73,8 @@ return {
 Restart gg_lib and type **`/ggsettings`** in game.
 
 > `server_config.lua` never reaches players. It is not downloaded to their game
-> the way the rest of the resource is, so the list is safe to keep here.
+> the way the rest of the resource is, so the list is safe to keep here. It also
+> survives updates, because the release only ships the example.
 
 ### Finding your license
 
@@ -113,7 +114,7 @@ job.
 | Page | What it holds |
 | --- | --- |
 | Your scripts | Every setting, grouped, with search |
-| Generic | Settings shared by all GG scripts — colour, currency, daily reset |
+| Generic | Settings shared by all GG scripts — color, currency, daily reset |
 | Bridges | What gg_lib connected to, and whether it worked |
 | Admins | Who has access |
 | Logs | Who changed what, and when |
@@ -148,8 +149,9 @@ prompts. Those apply the moment you pick them — no restart.
 
 ## Updating
 
-Replace the folder and restart. Your settings are in your database, so nothing
-you configured is lost.
+Replace the folder and restart. Your settings are in your database and your
+`server_config.lua` is not part of the download, so nothing you configured is
+lost.
 
 ---
 

@@ -13,6 +13,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # A tag that disagrees with the manifest ships a resource claiming the
+      # wrong version. Fail here rather than publish it.
+      - name: Check tag matches fxmanifest version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          MANIFEST=$(sed -n "s/^version[[:space:]]*'\([^']*\)'.*/\1/p" fxmanifest.lua)
+
+          if [ -z "$MANIFEST" ]; then
+            echo "::error::Could not read version from fxmanifest.lua"
+            exit 1
+          fi
+
+          if [ "$TAG" != "$MANIFEST" ]; then
+            echo "::error::Tag v$TAG does not match fxmanifest version $MANIFEST"
+            exit 1
+          fi
+
+          echo "Tag and manifest agree on $TAG"
+
       - name: Prepare Release Folder
         run: |
           mkdir "gg_lib"

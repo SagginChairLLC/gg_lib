@@ -1,3 +1,6 @@
+# Your own server config -- holds admin identifiers
+server_config.lua
+
 # Working notes, not shipped and not published
 AGENTS.md
 

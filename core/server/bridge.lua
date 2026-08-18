@@ -226,10 +226,34 @@ local function providerRows()
     return rows
 end
 
+--------------------------------------------------
+-- MARK: Stored overrides for consumers
+--------------------------------------------------
+-- Every GG script resolves its bridges at its own boot by reading the
+-- statebag published below; a direct call into this VM could yield on the
+-- caller's coroutine, and consumers read at file scope where a yield kills
+-- every script loaded after the import.
+
+local function storedOverrides()
+    local out = {}
+
+    for _, category in ipairs((manifest and manifest.category_order) or {}) do
+        local stored = GenericSettings.get(("bridge.%s"):format(category))
+
+        if type(stored) == "string" and stored ~= "" then out[category] = stored end
+    end
+
+    return out
+end
+
 local own
 
 CreateThread(function()
     Wait(0)
+
+    -- Published before detection so consumers starting right behind gg_lib
+    -- find it; republished on every change from the Bridges page.
+    GlobalState.gg_bridge_overrides = storedOverrides()
 
     own = {}
 
@@ -300,6 +324,10 @@ lib.callback.register("gg_lib:bridge:setProvider", function(source, data)
 
     local ok, errors = GenericSettings.apply({ [path] = data.value }, Admins.actor(source))
 
+    if ok and path:sub(1, 7) == "bridge." then
+        GlobalState.gg_bridge_overrides = storedOverrides()
+    end
+
     if not ok then
         return false, (type(errors) == "table" and (errors[path] or errors._)) or "rejected"
     end
@@ -307,27 +335,3 @@ lib.callback.register("gg_lib:bridge:setProvider", function(source, data)
     return true
 end)
 
---------------------------------------------------
--- MARK: Stored overrides for consumers
---------------------------------------------------
--- Every GG script resolves its bridges at its own boot; these hand it the
--- selections made on the Bridges page. Server VMs call the export, client VMs
--- the callback.
-
-local function storedOverrides()
-    local out = {}
-
-    for _, category in ipairs((manifest and manifest.category_order) or {}) do
-        local stored = GenericSettings.get(("bridge.%s"):format(category))
-
-        if type(stored) == "string" and stored ~= "" then out[category] = stored end
-    end
-
-    return out
-end
-
-exports("ggBridgeStored", storedOverrides)
-
-lib.callback.register("gg_lib:bridge:stored", function()
-    return storedOverrides()
-end)

@@ -3,10 +3,6 @@
 --------------------------------------------------
 
 return {
-    -- ox and qb candidates sit LAST in every list on purpose: plenty of servers
-    -- run them as dependencies of the thing they actually use, so any other
-    -- started resource wins auto detection first. qbx_core stays ahead of
-    -- qb-core because a qbox server also runs a qb-core shim.
     categories = {
         framework = {
             "es_extended",

@@ -475,6 +475,36 @@ end
 -- MARK: Overlay
 --------------------------------------------------
 
+-- A list setting stores the WHOLE list as one override, which would shadow
+-- any entry later added to the shipped default. merge_key names the row's
+-- identity field: stored rows stay authoritative (edits, order, tuning), and
+-- default rows whose key is absent from the store are appended -- so content
+-- added to the config keeps surfacing in the editor even while an override
+-- exists. The flip side is deliberate: a config-shipped row deleted in the
+-- editor comes back on the next resolve. Removing shipped content for good
+-- means removing it from the config default.
+local function mergeKeyedDefaults(def, value)
+    if type(value) ~= "table" then return value end
+
+    local present = {}
+
+    for index = 1, #value do
+        local row = value[index]
+
+        if type(row) == "table" and row[def.merge_key] ~= nil then
+            present[row[def.merge_key]] = true
+        end
+    end
+
+    for _, row in ipairs(def.default or {}) do
+        if type(row) == "table" and row[def.merge_key] ~= nil and not present[row[def.merge_key]] then
+            value[#value + 1] = deepCopy(row)
+        end
+    end
+
+    return value
+end
+
 function settings.apply(overrides)
     local changed = {}
 
@@ -485,6 +515,10 @@ function settings.apply(overrides)
             local ok, result = settings.validate(def, value)
 
             if ok then
+                if def.merge_key then
+                    result = mergeKeyedDefaults(def, result)
+                end
+
                 settings.write(path, result)
             else
                 settings.write(path, deepCopy(def.default))

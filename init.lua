@@ -117,19 +117,16 @@ local manifest do
     manifest = chunk()
 end
 
--- The Bridges page stores its selections in the database; a script resolving
--- its bridges at boot asks gg_lib for them. Best effort with a fallback --
--- if the answer cannot be fetched, utility.lua and auto detection still work.
+-- The Bridges page stores its selections in the database; gg_lib publishes
+-- them to a statebag and this reads it back. The read MUST be synchronous:
+-- this runs at file scope, and a yield here suspends this file while the
+-- scripts after it keep loading -- they would find no gg and no settings and
+-- die one by one. Server exports run on the caller's coroutine and the store
+-- awaits the database, so neither side may call into gg_lib for these.
 local storedOverrides = {}
 
 do
-    local ok, stored
-
-    if context == "server" then
-        ok, stored = pcall(function() return exports[GG_LIB]:ggBridgeStored() end)
-    else
-        ok, stored = pcall(lib.callback.await, "gg_lib:bridge:stored", false)
-    end
+    local ok, stored = pcall(function() return GlobalState.gg_bridge_overrides end)
 
     if ok and type(stored) == "table" then storedOverrides = stored end
 end

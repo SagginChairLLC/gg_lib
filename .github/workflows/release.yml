@@ -1,9 +1,16 @@
-name: Create Release on Tag
+name: Release
+
+# Releases follow fxmanifest.lua. Bump the version and push -- a release is cut
+# for it automatically. Push anything else and nothing happens, so ordinary
+# commits do not pile up releases.
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+
+permissions:
+  contents: write
 
 jobs:
   release:
@@ -12,39 +19,48 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # Tags are needed to tell an already-released version from a new one.
+          fetch-depth: 0
 
-      # A tag that disagrees with the manifest ships a resource claiming the
-      # wrong version. Fail here rather than publish it.
-      - name: Check tag matches fxmanifest version
+      - name: Read version from fxmanifest
+        id: check
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          MANIFEST=$(sed -n "s/^version[[:space:]]*'\([^']*\)'.*/\1/p" fxmanifest.lua)
+          VERSION=$(sed -n "s/^version[[:space:]]*'\([^']*\)'.*/\1/p" fxmanifest.lua)
 
-          if [ -z "$MANIFEST" ]; then
+          if [ -z "$VERSION" ]; then
             echo "::error::Could not read version from fxmanifest.lua"
             exit 1
           fi
 
-          if [ "$TAG" != "$MANIFEST" ]; then
-            echo "::error::Tag v$TAG does not match fxmanifest version $MANIFEST"
-            exit 1
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION is already released -- nothing to do"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION is new -- cutting a release"
           fi
 
-          echo "Tag and manifest agree on $TAG"
-
       - name: Prepare Release Folder
+        if: steps.check.outputs.exists == 'false'
         run: |
           mkdir "gg_lib"
           shopt -s extglob
           cp -r !(gg_lib|.git|.github) "gg_lib/"
 
       - name: Create ZIP Archive
+        if: steps.check.outputs.exists == 'false'
         run: |
           zip -r "gg_lib.zip" "gg_lib"
 
-      - name: Upload Release Asset
+      - name: Tag and publish
+        if: steps.check.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.check.outputs.version }}
+          name: v${{ steps.check.outputs.version }}
           files: gg_lib.zip
           generate_release_notes: true
         env:

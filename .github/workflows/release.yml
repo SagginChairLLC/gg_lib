@@ -20,11 +20,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          # Tags are needed to tell an already-released version from a new one.
           fetch-depth: 0
+          fetch-tags: true
 
-      - name: Read version from fxmanifest
+      # Asks GitHub whether the release exists rather than trusting the tags in
+      # the checkout. A tag that failed to fetch would otherwise read as "not
+      # released yet" and republish a version that is already out.
+      - name: Decide whether to release
         id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(sed -n "s/^version[[:space:]]*'\([^']*\)'.*/\1/p" fxmanifest.lua)
 
@@ -35,33 +40,40 @@ jobs:
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "release=skip" >> "$GITHUB_OUTPUT"
             echo "v$VERSION is already released -- nothing to do"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "v$VERSION is new -- cutting a release"
+            exit 0
           fi
 
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Tag v$VERSION already exists but has no release. Refusing to move it."
+            exit 1
+          fi
+
+          echo "release=go" >> "$GITHUB_OUTPUT"
+          echo "v$VERSION is new -- cutting a release"
+
       - name: Prepare Release Folder
-        if: steps.check.outputs.exists == 'false'
+        if: steps.check.outputs.release == 'go'
         run: |
           mkdir "gg_lib"
           shopt -s extglob
           cp -r !(gg_lib|.git|.github) "gg_lib/"
 
       - name: Create ZIP Archive
-        if: steps.check.outputs.exists == 'false'
+        if: steps.check.outputs.release == 'go'
         run: |
           zip -r "gg_lib.zip" "gg_lib"
 
       - name: Tag and publish
-        if: steps.check.outputs.exists == 'false'
+        if: steps.check.outputs.release == 'go'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.check.outputs.version }}
           name: v${{ steps.check.outputs.version }}
           files: gg_lib.zip
           generate_release_notes: true
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

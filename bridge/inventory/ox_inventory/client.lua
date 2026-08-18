@@ -9,6 +9,6 @@ gg.inventory.getImageDirectory = function()
 end
 
 gg.inventory.getItemTable = function(item)
-    if not item then return nil end
+    if not item then return exports.ox_inventory:Items() end
     return exports.ox_inventory:Items(item) or nil
 end

@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --primary: 252 186 3;
+        --primary-rgb: 252, 186, 3;
+        --primary-foreground: 0 0% 9%;
+        --radius: 0.5rem;
+    }
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--primary-rgb), 0.9) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 3px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: rgba(var(--primary-rgb), 0.9);
+    border-radius: 1px;
+}
+
+::selection {
+    background: rgba(var(--primary-rgb), 0.35);
+    color: white;
+}
+
+button {
+    outline: none;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type='number'] {
+    -moz-appearance: textfield;
+}
+
+input {
+    outline: none;
+}
+
+
+/*
+ * Long settings pages: the taxi job alone carries a 200+ row roster and 140+
+ * pickup vectors. content-visibility lets the renderer skip the layout and
+ * paint of anything scrolled out of view, and contain-intrinsic-size reserves
+ * a plausible height so the scrollbar and the section spy stay honest.
+ */
+.gg-defer {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 40vh;
+}
+
+.gg-defer-row {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 6vh;
+}
+
+/* Picker tiles are square plus a caption, so they reserve more than a list row. */
+.gg-defer-tile {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 12vh;
+}

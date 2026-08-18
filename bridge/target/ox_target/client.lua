@@ -57,7 +57,13 @@ AddEventHandler('onResourceStop', function(resource)
 end)
 
 gg.target.AddTargetEntity = function(entity, parameters)
-    exports.ox_target:addLocalEntity(entity, convert(parameters))
+    if not NetworkGetEntityIsNetworked(entity) then
+        exports.ox_target:addLocalEntity(entity, convert(parameters))
+    else
+        local net = NetworkGetNetworkIdFromEntity(entity)
+        exports.ox_target:addEntity(net, convert(parameters))
+    end
+
     local resource = GetInvokingResource()
     activeTargets[entity] = {
         entity = entity,
@@ -67,7 +73,12 @@ gg.target.AddTargetEntity = function(entity, parameters)
 end
 
 gg.target.removeTargetEntity = function(entity)
-    exports.ox_target:removeLocalEntity(entity)
+    if not NetworkGetEntityIsNetworked(entity) then
+        exports.ox_target:removeLocalEntity(entity)
+    else
+        local net = NetworkGetNetworkIdFromEntity(entity)
+        exports.ox_target:removeEntity(net)
+    end
 end
 
 gg.target.AddBoxZone = function(name, coords, size, parameters)

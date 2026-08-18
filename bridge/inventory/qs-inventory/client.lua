@@ -9,7 +9,7 @@ gg.inventory.getImageDirectory = function()
 end
 
 gg.inventory.getItemTable = function(item)
-    if not item then return nil end
     local itemList = exports['qs-inventory']:GetItemList()
+    if not item then return itemList end
     return itemList[item] or nil
 end

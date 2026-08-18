@@ -54,6 +54,10 @@ gg.inventory.removeItem = function(src, data)
 end
 
 gg.inventory.getItemTable = function(item)
-    if not item then return nil end
+    if not item then return exports["tgiann-inventory"]:Items() end
     return exports["tgiann-inventory"]:Items(item) or nil
+end
+
+gg.inventory.getImageUrl = function(item)
+    return string.format('https://cfx-nui-inventory_images/images/%s.png', item)
 end

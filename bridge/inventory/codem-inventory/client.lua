@@ -9,6 +9,7 @@ gg.inventory.getImageDirectory = function()
 end
 
 gg.inventory.getItemTable = function(item)
-    if not item then return nil end
-    return exports['codem-inventory']:GetItemList(item) or nil
+    local payload = exports['codem-inventory']:GetItemList()
+    if not item then return payload end
+    return payload[item] or nil
 end

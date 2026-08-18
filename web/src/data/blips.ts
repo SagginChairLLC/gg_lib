@@ -1,0 +1,140 @@
+/**
+ * Blip reference data for the `blipcolor` and `blipsprite` setting types.
+ *
+ * Sprite IDs and names are taken verbatim from the FiveM docs sprite list, and
+ * the preview images come from the same place. Color IDs and names are the
+ * standard SetBlipColour palette; the hex beside each one is a swatch derived
+ * from its name, so it shows what the color roughly is rather than a sampled
+ * in-game value. Correct any swatch here and the dropdown follows.
+ */
+
+export type BlipColor = { id: number; name: string; hex: string };
+
+export const BLIP_COLORS: BlipColor[] = [
+    { id: 0, name: 'White', hex: '#ffffff' },
+    { id: 1, name: 'Red', hex: '#e03232' },
+    { id: 2, name: 'Green', hex: '#71cc70' },
+    { id: 3, name: 'Blue', hex: '#5db6e5' },
+    { id: 4, name: 'White', hex: '#ffffff' },
+    { id: 5, name: 'Yellow', hex: '#f0e64b' },
+    { id: 6, name: 'Light Red', hex: '#d67d7d' },
+    { id: 7, name: 'Violet', hex: '#8c64c8' },
+    { id: 8, name: 'Pink', hex: '#e572c8' },
+    { id: 9, name: 'Light Orange', hex: '#e5a05a' },
+    { id: 10, name: 'Light Brown', hex: '#c8a57d' },
+    { id: 11, name: 'Light Green', hex: '#a5d68c' },
+    { id: 12, name: 'Light Blue', hex: '#8cbed6' },
+    { id: 13, name: 'Light Purple', hex: '#b18cd6' },
+    { id: 14, name: 'Dark Purple', hex: '#6e4b96' },
+    { id: 15, name: 'Cyan', hex: '#4bc8c8' },
+    { id: 16, name: 'Light Yellow', hex: '#e5dc8c' },
+    { id: 17, name: 'Orange', hex: '#e5820a' },
+    { id: 18, name: 'Light Blue', hex: '#96c8e5' },
+    { id: 19, name: 'Dark Pink', hex: '#c8508c' },
+    { id: 20, name: 'Dark Yellow', hex: '#c8b428' },
+    { id: 21, name: 'Dark Orange', hex: '#c86e14' },
+    { id: 22, name: 'Light Gray', hex: '#b4b4b4' },
+    { id: 23, name: 'Light Pink', hex: '#e5a0be' },
+    { id: 24, name: 'Lemon Green', hex: '#a0e550' },
+    { id: 25, name: 'Forest Green', hex: '#2d7d46' },
+    { id: 26, name: 'Electric Blue', hex: '#3c96ff' },
+    { id: 27, name: 'Bright Purple', hex: '#a03cff' },
+    { id: 28, name: 'Dark Yellow', hex: '#b4a032' },
+    { id: 29, name: 'Dark Blue', hex: '#2850a0' },
+    { id: 30, name: 'Dark Cyan', hex: '#328c8c' },
+    { id: 31, name: 'Light Brown', hex: '#c8a578' },
+    { id: 32, name: 'Light Blue', hex: '#a0c8e5' },
+    { id: 33, name: 'Light Yellow', hex: '#e5e08c' },
+    { id: 34, name: 'Light Pink', hex: '#e5afc8' },
+    { id: 35, name: 'Light Red', hex: '#e58c8c' },
+    { id: 36, name: 'Beige', hex: '#e5dcc8' },
+    { id: 37, name: 'White', hex: '#ffffff' },
+    { id: 38, name: 'Blue', hex: '#3c78c8' },
+    { id: 39, name: 'Light Gray', hex: '#c8c8c8' },
+    { id: 40, name: 'Dark Gray', hex: '#505050' },
+    { id: 41, name: 'Pink Red', hex: '#e5325a' },
+    { id: 42, name: 'Blue', hex: '#327dc8' },
+    { id: 43, name: 'Light Green', hex: '#8cd68c' },
+    { id: 44, name: 'Light Orange', hex: '#e5b478' },
+    { id: 45, name: 'White', hex: '#ffffff' },
+    { id: 46, name: 'Gold', hex: '#d4af37' },
+    { id: 47, name: 'Orange', hex: '#e58c14' },
+    { id: 48, name: 'Brilliant Rose', hex: '#f653a6' },
+    { id: 49, name: 'Red', hex: '#d62d2d' },
+    { id: 50, name: 'Medium Purple', hex: '#9370db' },
+    { id: 51, name: 'Salmon', hex: '#fa8072' },
+    { id: 52, name: 'Dark Green', hex: '#1e5a28' },
+    { id: 53, name: 'Blizzard Blue', hex: '#a3e3ed' },
+    { id: 54, name: 'Oracle Blue', hex: '#3c5a96' },
+    { id: 55, name: 'Silver', hex: '#c0c0c0' },
+    { id: 56, name: 'Brown', hex: '#8b5a2b' },
+    { id: 57, name: 'Blue', hex: '#4682b4' },
+    { id: 58, name: 'East Bay', hex: '#414c7d' },
+    { id: 59, name: 'Red', hex: '#c81e1e' },
+    { id: 60, name: 'Yellow Orange', hex: '#ffaa33' },
+    { id: 61, name: 'Mulberry Pink', hex: '#c54b8c' },
+    { id: 62, name: 'Alto Gray', hex: '#d0d0d0' },
+    { id: 63, name: 'Jelly Bean Blue', hex: '#2a6e8c' },
+    { id: 64, name: 'Dark Orange', hex: '#b45a0a' },
+    { id: 65, name: 'Mamba', hex: '#8e7b99' },
+    { id: 66, name: 'Yellow Orange', hex: '#ffaa33' },
+    { id: 67, name: 'Blue', hex: '#3c78c8' },
+    { id: 68, name: 'Blue', hex: '#4682b4' },
+    { id: 69, name: 'Green', hex: '#3cb43c' },
+    { id: 70, name: 'Yellow Orange', hex: '#ffaa33' },
+    { id: 71, name: 'Yellow Orange', hex: '#ffaa33' },
+    { id: 72, name: 'Transparent Black', hex: '#1e1e1e' },
+    { id: 73, name: 'Yellow Orange', hex: '#ffaa33' },
+    { id: 74, name: 'Blue', hex: '#3c78c8' },
+    { id: 75, name: 'Red', hex: '#d62d2d' },
+    { id: 76, name: 'Deep Red', hex: '#8b0000' },
+    { id: 77, name: 'Blue', hex: '#3c78c8' },
+    { id: 78, name: 'Oracle Blue', hex: '#3c5a96' },
+    { id: 79, name: 'Transparent Red', hex: '#c81e1e' },
+    { id: 80, name: 'Transparent Blue', hex: '#3c78c8' },
+    { id: 81, name: 'Orange', hex: '#e5820a' },
+    { id: 82, name: 'Light Green', hex: '#8cd68c' },
+    { id: 83, name: 'Purple', hex: '#7d3cc8' },
+    { id: 84, name: 'Blue', hex: '#3c78c8' },
+    { id: 85, name: 'Transparent Black', hex: '#1e1e1e' },
+];
+
+export const BLIP_COLOR_BY_ID = new Map(BLIP_COLORS.map((color) => [color.id, color]));
+
+/**
+ * id:name pairs, delimited rather than an object literal purely to keep the
+ * bundle small — 789 sprites is a lot of punctuation otherwise. IDs are not
+ * contiguous: the gaps are sprites the game does not expose.
+ */
+const SPRITE_DATA =
+    '0:radar_higher|1:radar_level|2:radar_lower|3:radar_police_ped|4:radar_wanted_radius|5:radar_area_blip|6:radar_centre|7:radar_north|8:radar_waypoint|9:radar_radius_blip|10:radar_radius_outline_blip|11:radar_weapon_higher|12:radar_weapon_lower|13:radar_higher_ai|14:radar_lower_ai|15:radar_police_heli_spin|16:radar_police_plane_move|27:radar_mp_crew|28:radar_mp_friendlies|36:radar_cable_car|37:radar_activities|38:radar_raceflag|40:radar_safehouse|41:radar_police|42:radar_police_chase|43:radar_police_heli|44:radar_bomb_a|47:radar_snitch|48:radar_planning_locations|50:radar_crim_carsteal|51:radar_crim_drugs|52:radar_crim_holdups|54:radar_crim_player|56:radar_cop_patrol|57:radar_cop_player|58:radar_crim_wanted|59:radar_heist|60:radar_police_station|61:radar_hospital|62:radar_assassins_mark|63:radar_elevator|64:radar_helicopter|66:radar_random_character|67:radar_security_van|68:radar_tow_truck|70:radar_illegal_parking|71:radar_barber|72:radar_car_mod_shop|73:radar_clothes_store|75:radar_tattoo|76:radar_armenian_family|77:radar_lester_family|78:radar_michael_family|79:radar_trevor_family|80:radar_jewelry_heist|82:radar_drag_race_finish|84:radar_rampage|85:radar_vinewood_tours|86:radar_lamar_family|88:radar_franklin_family|89:radar_chinese_strand|90:radar_flight_school|91:radar_eye_sky|92:radar_air_hockey|93:radar_bar|94:radar_base_jump|95:radar_basketball|96:radar_biolab_heist|99:radar_cabaret_club|100:radar_car_wash|102:radar_comedy_club|103:radar_darts|104:radar_docks_heist|105:radar_fbi_heist|106:radar_fbi_officers_strand|107:radar_finale_bank_heist|108:radar_financier_strand|109:radar_golf|110:radar_gun_shop|111:radar_internet_cafe|112:radar_michael_family_exile|113:radar_nice_house_heist|114:radar_random_female|115:radar_random_male|118:radar_rural_bank_heist|119:radar_shooting_range|120:radar_solomon_strand|121:radar_strip_club|122:radar_tennis|123:radar_trevor_family_exile|124:radar_michael_trevor_family|126:radar_triathlon|127:radar_off_road_racing|128:radar_gang_cops|129:radar_gang_mexicans|130:radar_gang_bikers|133:radar_snitch_red|134:radar_crim_cuff_keys|135:radar_cinema|136:radar_music_venue|137:radar_police_station_blue|138:radar_airport|139:radar_crim_saved_vehicle|140:radar_weed_stash|141:radar_hunting|142:radar_pool|143:radar_objective_blue|144:radar_objective_green|145:radar_objective_red|146:radar_objective_yellow|147:radar_arms_dealing|148:radar_mp_friend|149:radar_celebrity_theft|150:radar_weapon_assault_rifle|151:radar_weapon_bat|152:radar_weapon_grenade|153:radar_weapon_health|154:radar_weapon_knife|155:radar_weapon_molotov|156:radar_weapon_pistol|157:radar_weapon_rocket|158:radar_weapon_shotgun|159:radar_weapon_smg|160:radar_weapon_sniper|161:radar_mp_noise|162:radar_poi|163:radar_passive|164:radar_usingmenu|171:radar_gang_cops_partner|173:radar_weapon_minigun|175:radar_weapon_armour|176:radar_property_takeover|177:radar_gang_mexicans_highlight|178:radar_gang_bikers_highlight|179:radar_triathlon_cycling|180:radar_triathlon_swimming|181:radar_property_takeover_bikers|182:radar_property_takeover_cops|183:radar_property_takeover_vagos|184:radar_camera|185:radar_centre_red|186:radar_handcuff_keys_bikers|187:radar_handcuff_keys_vagos|188:radar_handcuffs_closed_bikers|189:radar_handcuffs_closed_vagos|192:radar_camera_badger|193:radar_camera_facade|194:radar_camera_ifruit|197:radar_yoga|198:radar_taxi|205:radar_shrink|206:radar_epsilon|207:radar_financier_strand_grey|208:radar_trevor_family_grey|209:radar_trevor_family_red|210:radar_franklin_family_grey|211:radar_franklin_family_blue|212:radar_franklin_a|213:radar_franklin_b|214:radar_franklin_c|225:radar_gang_vehicle|226:radar_gang_vehicle_bikers|227:radar_gang_vehicle_cops|228:radar_gang_vehicle_vagos|229:radar_guncar|230:radar_driving_bikers|231:radar_driving_cops|232:radar_driving_vagos|233:radar_gang_cops_highlight|234:radar_shield_bikers|235:radar_shield_cops|236:radar_shield_vagos|237:radar_custody_bikers|238:radar_custody_vagos|251:radar_arms_dealing_air|252:radar_playerstate_arrested|253:radar_playerstate_custody|254:radar_playerstate_driving|255:radar_playerstate_keyholder|256:radar_playerstate_partner|262:radar_ztype|263:radar_stinger|264:radar_packer|265:radar_monroe|266:radar_fairground|267:radar_property|268:radar_gang_highlight|269:radar_altruist|270:radar_ai|271:radar_on_mission|272:radar_cash_pickup|273:radar_chop|274:radar_dead|275:radar_territory_locked|276:radar_cash_lost|277:radar_cash_vagos|278:radar_cash_cops|279:radar_hooker|280:radar_friend|281:radar_mission_2to4|282:radar_mission_2to8|283:radar_mission_2to12|284:radar_mission_2to16|285:radar_custody_dropoff|286:radar_onmission_cops|287:radar_onmission_lost|288:radar_onmission_vagos|289:radar_crim_carsteal_cops|290:radar_crim_carsteal_bikers|291:radar_crim_carsteal_vagos|292:radar_band_strand|293:radar_simeon_family|294:radar_mission_1|295:radar_mission_2|296:radar_friend_darts|297:radar_friend_comedyclub|298:radar_friend_cinema|299:radar_friend_tennis|300:radar_friend_stripclub|301:radar_friend_livemusic|302:radar_friend_golf|303:radar_bounty_hit|304:radar_ugc_mission|305:radar_horde|306:radar_cratedrop|307:radar_plane_drop|308:radar_sub|309:radar_race|310:radar_deathmatch|311:radar_arm_wrestling|312:radar_mission_1to2|313:radar_shootingrange_gunshop|314:radar_race_air|315:radar_race_land|316:radar_race_sea|317:radar_tow|318:radar_garbage|319:radar_drill|320:radar_spikes|321:radar_firetruck|322:radar_minigun2|323:radar_bugstar|324:radar_submarine|325:radar_chinook|326:radar_getaway_car|327:radar_mission_bikers_1|328:radar_mission_bikers_1to2|329:radar_mission_bikers_2|330:radar_mission_bikers_2to4|331:radar_mission_bikers_2to8|332:radar_mission_bikers_2to12|333:radar_mission_bikers_2to16|334:radar_mission_cops_1|335:radar_mission_cops_1to2|336:radar_mission_cops_2|337:radar_mission_cops_2to4|338:radar_mission_cops_2to8|339:radar_mission_cops_2to12|340:radar_mission_cops_2to16|341:radar_mission_vagos_1|342:radar_mission_vagos_1to2|343:radar_mission_vagos_2|344:radar_mission_vagos_2to4|345:radar_mission_vagos_2to8|346:radar_mission_vagos_2to12|347:radar_mission_vagos_2to16|348:radar_gang_bike|349:radar_gas_grenade|350:radar_property_for_sale|351:radar_gang_attack_package|352:radar_martin_madrazzo|353:radar_enemy_heli_spin|354:radar_boost|355:radar_devin|356:radar_dock|357:radar_garage|358:radar_golf_flag|359:radar_hangar|360:radar_helipad|361:radar_jerry_can|362:radar_mask|363:radar_heist_prep|364:radar_incapacitated|365:radar_spawn_point_pickup|366:radar_boilersuit|367:radar_completed|368:radar_rockets|369:radar_garage_for_sale|370:radar_helipad_for_sale|371:radar_dock_for_sale|372:radar_hangar_for_sale|373:radar_placeholder_6|374:radar_business|375:radar_business_for_sale|376:radar_race_bike|377:radar_parachute|378:radar_team_deathmatch|379:radar_race_foot|380:radar_vehicle_deathmatch|381:radar_barry|382:radar_dom|383:radar_maryann|384:radar_cletus|385:radar_josh|386:radar_minute|387:radar_omega|388:radar_tonya|389:radar_paparazzo|390:radar_aim|391:radar_cratedrop_background|392:radar_green_and_net_player1|393:radar_green_and_net_player2|394:radar_green_and_net_player3|395:radar_green_and_friendly|396:radar_net_player1_and_net_player2|397:radar_net_player1_and_net_player3|398:radar_creator|399:radar_creator_direction|400:radar_abigail|401:radar_blimp|402:radar_repair|403:radar_testosterone|404:radar_dinghy|405:radar_fanatic|407:radar_info_icon|408:radar_capture_the_flag|409:radar_last_team_standing|410:radar_boat|411:radar_capture_the_flag_base|412:radar_mp_crew|413:radar_capture_the_flag_outline|414:radar_capture_the_flag_base_nobag|415:radar_weapon_jerrycan|416:radar_rp|417:radar_level_inside|418:radar_bounty_hit_inside|419:radar_capture_the_usaflag|420:radar_capture_the_usaflag_outline|421:radar_tank|422:radar_player_heli|423:radar_player_plane|424:radar_player_jet|425:radar_centre_stroke|426:radar_player_guncar|427:radar_player_boat|428:radar_mp_heist|429:radar_temp_1|430:radar_temp_2|431:radar_temp_3|432:radar_temp_4|433:radar_temp_5|434:radar_temp_6|435:radar_race_stunt|436:radar_hot_property|437:radar_urbanwarfare_versus|438:radar_king_of_the_castle|439:radar_player_king|440:radar_dead_drop|441:radar_penned_in|442:radar_beast|443:radar_edge_pointer|444:radar_edge_crosstheline|445:radar_mp_lamar|446:radar_bennys|447:radar_corner_number_1|448:radar_corner_number_2|449:radar_corner_number_3|450:radar_corner_number_4|451:radar_corner_number_5|452:radar_corner_number_6|453:radar_corner_number_7|454:radar_corner_number_8|455:radar_yacht|456:radar_finders_keepers|457:radar_assault_package|458:radar_hunt_the_boss|459:radar_sightseer|460:radar_turreted_limo|461:radar_belly_of_the_beast|462:radar_yacht_location|463:radar_pickup_beast|464:radar_pickup_zoned|465:radar_pickup_random|466:radar_pickup_slow_time|467:radar_pickup_swap|468:radar_pickup_thermal|469:radar_pickup_weed|470:radar_weapon_railgun|471:radar_seashark|472:radar_pickup_hidden|473:radar_warehouse|474:radar_warehouse_for_sale|475:radar_office|476:radar_office_for_sale|477:radar_truck|478:radar_contraband|479:radar_trailer|480:radar_vip|481:radar_cargobob|482:radar_area_outline_blip|483:radar_pickup_accelerator|484:radar_pickup_ghost|485:radar_pickup_detonator|486:radar_pickup_bomb|487:radar_pickup_armoured|488:radar_stunt|489:radar_weapon_lives|490:radar_stunt_premium|491:radar_adversary|492:radar_biker_clubhouse|493:radar_biker_caged_in|494:radar_biker_turf_war|495:radar_biker_joust|496:radar_production_weed|497:radar_production_crack|498:radar_production_fake_id|499:radar_production_meth|500:radar_production_money|501:radar_package|502:radar_capture_1|503:radar_capture_2|504:radar_capture_3|505:radar_capture_4|506:radar_capture_5|507:radar_capture_6|508:radar_capture_7|509:radar_capture_8|510:radar_capture_9|511:radar_capture_10|512:radar_quad|513:radar_bus|514:radar_drugs_package|515:radar_pickup_jump|516:radar_adversary_4|517:radar_adversary_8|518:radar_adversary_10|519:radar_adversary_12|520:radar_adversary_16|521:radar_laptop|522:radar_pickup_deadline|523:radar_sports_car|524:radar_warehouse_vehicle|525:radar_reg_papers|526:radar_police_station_dropoff|527:radar_junkyard|528:radar_ex_vech_1|529:radar_ex_vech_2|530:radar_ex_vech_3|531:radar_ex_vech_4|532:radar_ex_vech_5|533:radar_ex_vech_6|534:radar_ex_vech_7|535:radar_target_a|536:radar_target_b|537:radar_target_c|538:radar_target_d|539:radar_target_e|540:radar_target_f|541:radar_target_g|542:radar_target_h|543:radar_jugg|544:radar_pickup_repair|545:radar_steeringwheel|546:radar_trophy|547:radar_pickup_rocket_boost|548:radar_pickup_homing_rocket|549:radar_pickup_machinegun|550:radar_pickup_parachute|551:radar_pickup_time_5|552:radar_pickup_time_10|553:radar_pickup_time_15|554:radar_pickup_time_20|555:radar_pickup_time_30|556:radar_supplies|557:radar_property_bunker|558:radar_gr_wvm_1|559:radar_gr_wvm_2|560:radar_gr_wvm_3|561:radar_gr_wvm_4|562:radar_gr_wvm_5|563:radar_gr_wvm_6|564:radar_gr_covert_ops|565:radar_adversary_bunker|566:radar_gr_moc_upgrade|567:radar_gr_w_upgrade|568:radar_sm_cargo|569:radar_sm_hangar|570:radar_tf_checkpoint|571:radar_race_tf|572:radar_sm_wp1|573:radar_sm_wp2|574:radar_sm_wp3|575:radar_sm_wp4|576:radar_sm_wp5|577:radar_sm_wp6|578:radar_sm_wp7|579:radar_sm_wp8|580:radar_sm_wp9|581:radar_sm_wp10|582:radar_sm_wp11|583:radar_sm_wp12|584:radar_sm_wp13|585:radar_sm_wp14|586:radar_nhp_bag|587:radar_nhp_chest|588:radar_nhp_orbit|589:radar_nhp_veh1|590:radar_nhp_base|591:radar_nhp_overlay|592:radar_nhp_turret|593:radar_nhp_mg_firewall|594:radar_nhp_mg_node|595:radar_nhp_wp1|596:radar_nhp_wp2|597:radar_nhp_wp3|598:radar_nhp_wp4|599:radar_nhp_wp5|600:radar_nhp_wp6|601:radar_nhp_wp7|602:radar_nhp_wp8|603:radar_nhp_wp9|604:radar_nhp_cctv|605:radar_nhp_starterpack|606:radar_nhp_turret_console|607:radar_nhp_mg_mir_rotate|608:radar_nhp_mg_mir_static|609:radar_nhp_mg_proxy|610:radar_acsr_race_target|611:radar_acsr_race_hotring|612:radar_acsr_wp1|613:radar_acsr_wp2|614:radar_bat_club_property|615:radar_bat_cargo|616:radar_bat_truck|617:radar_bat_hack_jewel|618:radar_bat_hack_gold|619:radar_bat_keypad|620:radar_bat_hack_target|621:radar_pickup_dtb_health|622:radar_pickup_dtb_blast_increase|623:radar_pickup_dtb_blast_decrease|624:radar_pickup_dtb_bomb_increase|625:radar_pickup_dtb_bomb_decrease|626:radar_bat_rival_club|627:radar_bat_drone|628:radar_bat_cash_reg|629:radar_cctv|630:radar_bat_assassinate|631:radar_bat_pbus|632:radar_bat_wp1|633:radar_bat_wp2|634:radar_bat_wp3|635:radar_bat_wp4|636:radar_bat_wp5|637:radar_bat_wp6|638:radar_blimp_2|639:radar_oppressor_2|640:radar_bat_wp7|641:radar_arena_series|642:radar_arena_premium|643:radar_arena_workshop|644:radar_race_wars|645:radar_arena_turret|646:radar_arena_rc_car|647:radar_arena_rc_workshop|648:radar_arena_trap_fire|649:radar_arena_trap_flip|650:radar_arena_trap_sea|651:radar_arena_trap_turn|652:radar_arena_trap_pit|653:radar_arena_trap_mine|654:radar_arena_trap_bomb|655:radar_arena_trap_wall|656:radar_arena_trap_brd|657:radar_arena_trap_sbrd|658:radar_arena_bruiser|659:radar_arena_brutus|660:radar_arena_cerberus|661:radar_arena_deathbike|662:radar_arena_dominator|663:radar_arena_impaler|664:radar_arena_imperator|665:radar_arena_issi|666:radar_arena_sasquatch|667:radar_arena_scarab|668:radar_arena_slamvan|669:radar_arena_zr380|670:radar_ap|671:radar_comic_store|672:radar_cop_car|673:radar_rc_time_trials|674:radar_king_of_the_hill|675:radar_king_of_the_hill_teams|676:radar_rucksack|677:radar_shipping_container|678:radar_agatha|679:radar_casino|680:radar_casino_table_games|681:radar_casino_wheel|682:radar_casino_concierge|683:radar_casino_chips|684:radar_casino_horse_racing|685:radar_adversary_featured|686:radar_roulette_1|687:radar_roulette_2|688:radar_roulette_3|689:radar_roulette_4|690:radar_roulette_5|691:radar_roulette_6|692:radar_roulette_7|693:radar_roulette_8|694:radar_roulette_9|695:radar_roulette_10|696:radar_roulette_11|697:radar_roulette_12|698:radar_roulette_13|699:radar_roulette_14|700:radar_roulette_15|701:radar_roulette_16|702:radar_roulette_17|703:radar_roulette_18|704:radar_roulette_19|705:radar_roulette_20|706:radar_roulette_21|707:radar_roulette_22|708:radar_roulette_23|709:radar_roulette_24|710:radar_roulette_25|711:radar_roulette_26|712:radar_roulette_27|713:radar_roulette_28|714:radar_roulette_29|715:radar_roulette_30|716:radar_roulette_31|717:radar_roulette_32|718:radar_roulette_33|719:radar_roulette_34|720:radar_roulette_35|721:radar_roulette_36|722:radar_roulette_0|723:radar_roulette_00|724:radar_limo|725:radar_weapon_alien|726:radar_race_open_wheel|727:radar_rappel|728:radar_swap_car|729:radar_scuba_gear|730:radar_cpanel_1|731:radar_cpanel_2|732:radar_cpanel_3|733:radar_cpanel_4|734:radar_snow_truck|735:radar_buggy_1|736:radar_buggy_2|737:radar_zhaba|738:radar_gerald|739:radar_ron|740:radar_arcade|741:radar_drone_controls|742:radar_rc_tank|743:radar_stairs|744:radar_camera_2|745:radar_winky|746:radar_mini_sub|747:radar_kart_retro|748:radar_kart_modern|749:radar_military_quad|750:radar_military_truck|751:radar_ship_wheel|752:radar_ufo|753:radar_seasparrow2|754:radar_dinghy2|755:radar_patrol_boat|756:radar_retro_sports_car|757:radar_squadee|758:radar_folding_wing_jet|759:radar_valkyrie2|760:radar_sub2|761:radar_bolt_cutters|762:radar_rappel_gear|763:radar_keycard|764:radar_password|765:radar_island_heist_prep|766:radar_island_party|767:radar_control_tower|768:radar_underwater_gate|769:radar_power_switch|770:radar_compound_gate|771:radar_rappel_point|772:radar_keypad|773:radar_sub_controls|774:radar_sub_periscope|775:radar_sub_missile|776:radar_painting|777:radar_car_meet|778:radar_car_test_area|779:radar_auto_shop_property|780:radar_docks_export|781:radar_prize_car|782:radar_test_car|783:radar_car_robbery_board|784:radar_car_robbery_prep|785:radar_street_race_series|786:radar_pursuit_series|787:radar_car_meet_organiser|788:radar_securoserv';
+
+export type BlipSprite = { id: number; name: string; label: string };
+
+/** radar_police_station -> "Police Station", so the list reads as English. */
+function spriteLabel(name: string): string {
+    return name
+        .replace(/^radar_/, '')
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+export const BLIP_SPRITES: BlipSprite[] = SPRITE_DATA.split('|').map((entry) => {
+    const separator = entry.indexOf(':');
+    const name = entry.slice(separator + 1);
+
+    return { id: Number(entry.slice(0, separator)), name, label: spriteLabel(name) };
+});
+
+export const BLIP_SPRITE_BY_ID = new Map(BLIP_SPRITES.map((sprite) => [sprite.id, sprite]));
+
+/**
+ * Preview images are served by the FiveM docs backend rather than bundled —
+ * 789 PNGs is not worth shipping in the resource. They fail soft: the control
+ * falls back to the .gif variant (some sprites are animated) and then to the
+ * plain id, so a server with no outbound access still gets a usable list.
+ */
+export function spriteImageUrl(name: string, extension: 'png' | 'gif' = 'png'): string {
+    return `https://docs-backend.fivem.net/blips/${name}.${extension}`;
+}

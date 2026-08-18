@@ -4,6 +4,7 @@ local ESX = exports.es_extended:getSharedObject()
 local PlayerData = ESX.GetPlayerData()
 
 gg.framework.getItemTable = function(item)
+    if not item then return exports.ox_inventory:Items() end
     local itemData = exports.ox_inventory:Items(item)
     return itemData or item
 end
@@ -24,53 +25,6 @@ gg.framework.GetPlayerGroupInfo = function()
     }
     return jobInfo
 end
-
---- Get the player's sex.
--- @return number: 1 for Male, 2 for Female.
-gg.framework.GetSex = function()
-    return PlayerData.sex == 'm' and 1 or 2
-end
-
--- @param outfit table | The outfit data to set for the player.
--- @return void
-gg.framework.SetOutfit = function(outfit)
-    if GetResourceState("rcore_clothing") == "started" or GetResourceState("rcore_clothing") == "starting" or GetResourceState("rcore_clothing") == "stopped" then
-        if outfit then
-            ESX.TriggerServerCallback('esx_skin:getPlayerSkin', function(skin, jobSkin)
-                TriggerEvent('skinchanger:loadClothes', skin, outfit)
-            end)
-        else
-            TriggerServerEvent('rcore_clothing:reloadSkin')
-        end
-    elseif GetResourceState("tgiann-clothing") == "started" or GetResourceState("tgiann-clothing") == "starting" or GetResourceState("tgiann-clothing") == "stopped" then
-        if outfit then
-            ESX.TriggerServerCallback('esx_skin:getPlayerSkin', function(skin, jobSkin)
-                TriggerEvent('skinchanger:loadClothes', skin, outfit)
-            end)
-        else
-            exports["tgiann-clothing"]:RefreshSkin()
-        end
-    elseif GetResourceState("illenium-appearance") == "started" or GetResourceState("illenium-appearance") == "starting" or GetResourceState("illenium-appearance") == "stopped" then
-        if outfit then
-            ESX.TriggerServerCallback('esx_skin:getPlayerSkin', function(skin, jobSkin)
-                TriggerEvent('skinchanger:loadClothes', skin, outfit)
-            end)
-        else
-            TriggerEvent("illenium-appearance:client:reloadSkin")
-        end
-    else
-        if outfit then
-            ESX.TriggerServerCallback('esx_skin:getPlayerSkin', function(skin, jobSkin)
-                TriggerEvent('skinchanger:loadClothes', skin, outfit)
-            end)
-        else
-            ESX.TriggerServerCallback('esx_skin:getPlayerSkin', function(skin, jobSkin)
-                TriggerEvent('skinchanger:loadSkin', skin)
-            end)
-        end
-    end
-end
-
 
 local cachedVehicles = {}
 local lastVehicleRequest = 0

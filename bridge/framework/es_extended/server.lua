@@ -26,8 +26,6 @@ end
 -- @param identifier string | The player's unique identifier.
 -- @return string The player's full name.
 gg.framework.GetNameByIdentifier = function(identifier)
-    if not identifier then return nil end
-    
     if identifier then
         local result = MySQL.query.await('SELECT firstname, lastname FROM users WHERE identifier = ?', { identifier })
         if result and result[1] then
@@ -36,7 +34,8 @@ gg.framework.GetNameByIdentifier = function(identifier)
             return name
         end
     end
-    return "Unknown"
+    identifier = identifier or "No Id"
+    return "No Name Found - " .. identifier
 end
 
 gg.framework.GetItemData = function(item)
@@ -122,19 +121,20 @@ gg.framework.GetInventory = function(source)
     local player = ESX.GetPlayerFromId(source)
     local items = {}
     local data = ox_inventory and exports.ox_inventory:GetInventoryItems(source) or player.getInventory()
-    for i = 1, #data do
-        local item = data[i]
-        items[#items + 1] = {
+
+    for slot, item in pairs(data) do
+        table.insert(items, {
             name = item.name,
             label = item.label,
+            slot = slot,
             count = ox_inventory and item.count or item.amount,
             weight = item.weight,
             metadata = ox_inventory and item.metadata or item.info
-        }
+        })
     end
+
     return items
 end
-
 --- Register a usable item.
 -- @param item string: The item's name.
 -- @param cb function: The callback function triggered when the item is used.
@@ -148,6 +148,8 @@ gg.framework.GetMoney = function(src, accountname)
         return tonumber(xPlayer.getAccount("money").money)
     elseif accountname == 'bank' then
         return tonumber(xPlayer.getAccount("bank").money)
+    elseif accountname == 'black_money' then
+        return tonumber(xPlayer.getAccount("black_money").money)
     end
 end
 
@@ -158,6 +160,9 @@ gg.framework.AddMoney = function(src, accountname, amount, reason)
         return true
     elseif accountname == 'bank' then
         xPlayer.addAccountMoney("bank", amount)
+        return true
+    elseif accountname == "black_money" then
+        xPlayer.addAccountMoney("black_money", amount)
         return true
     end
 end
@@ -176,7 +181,25 @@ gg.framework.RemoveMoney = function(src, accountname, amount, reason)
             return true
         end
         return false
+    elseif accountname == 'black_money' then
+        if gg.framework.GetMoney(src, accountname) >= tonumber(amount) then
+            xPlayer.removeAccountMoney("black_money", amount)
+            return true
+        end
+        return false
     end
+end
+
+--- Set a player's job.
+-- @param source number: The player's server ID.
+-- @param jobId string: The job name to set.
+-- @param grade number: The grade/rank (default 0).
+-- @return boolean: Whether the job was set successfully.
+gg.framework.SetJob = function(source, jobId, grade)
+    local player = ESX.GetPlayerFromId(source)
+    if not player then return false end
+    player.setJob(jobId, tonumber(grade) or 0)
+    return true
 end
 
 
@@ -230,6 +253,8 @@ gg.framework.GetVehicle = function(vehicle)
     return vehicle_storage[vehicle] or vehicle
 end
 
+
+
 local vehicle_list = {}
 local last_request = 0
 lib.callback.register(GetCurrentResourceName()..":server:retrieveVehicleList", function()
@@ -263,17 +288,27 @@ gg.framework.getItemLabel = function(item)
     return item
 end
 
+gg.framework.GetVehicleTable = function()
+    local results = MySQL.query.await("SELECT name, model FROM vehicles")
+    if not results then return {} end
+    local out = {}
+    for _, row in ipairs(results) do
+        if row.model then
+            out[#out + 1] = { model = row.model, label = row.name or row.model }
+        end
+    end
+    return out
+end
+
 
 local cached_admins = {}
 gg.framework.HasPermission = function(source)
-    if cached_admins[source] ~= nil then
-        return cached_admins[source]
+    if not source or source == 0 or type(source) ~= "number" then
+        return false
     end
 
-    local xPlayer = ESX.GetPlayerFromId(source)
-    if xPlayer.admin then
-        cached_admins[source] = true
-        return true
+    if cached_admins[source] ~= nil then
+        return cached_admins[source]
     end
 
     for _, id in pairs(GetPlayerIdentifiers(source)) do
@@ -285,34 +320,50 @@ gg.framework.HasPermission = function(source)
         end
     end
 
+    local xPlayer = ESX.GetPlayerFromId(source)
+    if xPlayer and xPlayer.admin then
+        cached_admins[source] = true
+        return true
+    end
+
     cached_admins[source] = false
     return false
 end
 
+
 gg.framework.GetUniquePlate = function()
-    local charset = {}
-    for c = 65, 90 do charset[#charset+1] = string.char(c) end
-    for c = 48, 57 do charset[#charset+1] = string.char(c) end
+    local letters, numbers = {}, {}
+
+    for c = 65, 90 do letters[#letters+1] = string.char(c) end
+    for c = 48, 57 do numbers[#numbers+1] = string.char(c) end
+
+    local function rand(tbl)
+        return tbl[math.random(#tbl)]
+    end
 
     while true do
-        local plate, hasLetter, hasNumber = "", false, false
+        local plate = ""
 
-        for i = 1, 8 do
-            local char = charset[math.random(#charset)]
-            if char:match("%a") then hasLetter = true end
-            if char:match("%d") then hasNumber = true end
-            plate = plate .. char
-        end
+        plate = plate .. rand(numbers)
+        plate = plate .. rand(letters)
+        plate = plate .. rand(letters)
+        plate = plate .. rand(numbers)
+        plate = plate .. rand(numbers)
+        plate = plate .. rand(numbers)
+        plate = plate .. rand(letters)
+        plate = plate .. rand(letters)
+        
+        local exists = MySQL.scalar.await(
+            "SELECT 1 FROM owned_vehicles WHERE plate = ? LIMIT 1",
+            { plate }
+        )
 
-        if hasLetter and hasNumber then
-            local exists = MySQL.scalar.await(
-                "SELECT 1 FROM owned_vehicles WHERE plate = ? LIMIT 1",
-                { plate }
-            )
-            if not exists then return plate end
+        if not exists then
+            return plate
         end
     end
 end
+
 
 gg.framework.InsertVehiclePlayerGarage = function(payload)
     local src = payload.source
@@ -338,8 +389,6 @@ gg.framework.InsertVehiclePlayerGarage = function(payload)
         valid_plate = gg.framework.GetUniquePlate()
     end
 
-    -- mods may need to use this ESX.Game.GetVehicleProperties(currentDisplayVehicle)
-
     MySQL.insert(
         "INSERT INTO owned_vehicles (owner, plate, vehicle, type, job, stored, parking, pound, mileage, glovebox, trunk) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         {
@@ -348,12 +397,12 @@ gg.framework.InsertVehiclePlayerGarage = function(payload)
             json.encode(payload.mods or {}),
             payload.type or "car",
             payload.job or nil,
-            0,
-            nil,
+            1,
+            payload.garage or nil,
             nil, 
             0.0,
-            json.encode({}),
-            json.encode({})
+            nil,
+            nil
         }
     )
 

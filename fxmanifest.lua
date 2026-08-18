@@ -1,42 +1,44 @@
-lua54 'yes' fx_version 'cerulean' game 'gta5' lua54 'yes' version '0.0.3'
+fx_version 'cerulean'
+game 'gta5'
+lua54 'yes'
 
-
-
+name 'gg_lib'
 author 'GG Studio'
-description 'GG studio | Discord: https://discord.gg/DqMXJzATph'
+version '0.1.0'
+description 'GG Studio | Import-based library: bridge, gg.* modules, /jobsettings editor | Discord: https://discord.gg/DqMXJzATph'
 
+-- Production build
+-- ui_page 'web/dist/index.html'
+-- Hot reloading
+ui_page "http://localhost:5180/"
 
+files {
+    'init.lua',
+    'utility.lua',
+    'bridge/manifest.lua',
+    'bridge/**/client.lua',
+    'bridge/**/server.lua',
+    'modules/**/client.lua',
+    'modules/**/server.lua',
+    'modules/**/shared.lua',
+    'web/dist/index.html',
+    'web/dist/**/*',
+}
 
 shared_scripts {
     '@ox_lib/init.lua',
-    'utility.lua',
 }
 
--- Production build
---ui_page "web/dist/index.html"
--- Hot reloading Live Server
---  ui_page "http://localhost:5173/"
-
-files {
-    'utility.lua',
-    'init/shared.lua',
-    'bridge/**/**/*.lua',
-
-    -- 'web/dist/index.html',
-    -- 'web/dist/**/*'
+client_scripts {
+    'core/client/*.lua',
 }
-server_scripts {   
+
+server_scripts {
     '@oxmysql/lib/MySQL.lua',
-    'init/server.lua',
-    'lib/**/server.lua',
-}
-
-client_scripts { 
-    'init/client.lua',
-    'lib/**/client.lua',
+    'core/server/*.lua',
 }
 
 dependencies {
-	'ox_lib',
+    'ox_lib',
     'oxmysql',
 }

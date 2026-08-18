@@ -51,6 +51,10 @@ gg.inventory.removeItem = function(src, data)
 end
 
 gg.inventory.getItemTable = function(item)
-    if not item then return nil end
+    if not item then return gg.framework.GetItemData() end
     return gg.framework.GetItemData(item) or nil
+end
+
+gg.inventory.getImageUrl = function(item)
+    return string.format('https://cfx-nui-origen_inventory/html/images/%s.png', item)
 end

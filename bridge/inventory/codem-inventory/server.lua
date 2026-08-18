@@ -9,14 +9,17 @@ gg.inventory.hasItem = function(src, data)
     if not inventory then
         return false, {err = "Failed to get inventory"}
     end
+    
     local count = 0
     for k,v in pairs(inventory) do
         if v.name == data.item then
-            count = count + v.amount
+            local itemAmount = (v.amount or v.count or 0)
+            count = count + tonumber(itemAmount)
         end
     end
 
-    if count < data.count then
+    local requiredCount = tonumber(data.count) or 1
+    if count < requiredCount then
         return false, {err = "You do not have enough of this item"}
     end
 
@@ -53,6 +56,12 @@ gg.inventory.removeItem = function(src, data)
 end
 
 gg.inventory.getItemTable = function(item)
-    if not item then return nil end
-    return exports['codem-inventory']:GetItemList(item) or nil
+    local payload = exports['codem-inventory']:GetItemList()
+    if not item then return payload end
+    return payload[item] or nil
 end
+
+gg.inventory.getImageUrl = function(item)
+    return string.format('https://cfx-nui-codem-inventory/html/itemimages/%s.png', item)
+end
+

@@ -3,24 +3,10 @@ import { useEffect, useRef, useState } from 'react';
 import { t } from '@/data/useLang';
 import { closePicker, usePicker, type PickerItem } from '@/data/usePicker';
 
-/**
- * The side picker. Opens as a column beside the settings list rather than over
- * it, so the list narrows and the field being edited stays in view. Every
- * large-dataset field uses it: peds, blip icons, blip colors and long enums.
- *
- * Two layouts, chosen by whether the options have anything to show. Peds, icons
- * and colors get a grid of squares, because a name is not enough to pick one
- * by. Animations and plain enums get full-width rows, because a square holding
- * only text wastes the space it was given.
- */
-
-/** Revealed per scroll step; several hundred previews at once is a lot of requests. */
 const PAGE = 60;
 
-/** Width the panel opens to. The settings list gives up exactly this much. */
 const PANEL_WIDTH = '50vh';
 
-/** Full-width row for options with nothing to preview — animations, enums. */
 function Row({ item, selected, onPick }: { item: PickerItem; selected: boolean; onPick: () => void }) {
     return (
         <button
@@ -59,8 +45,6 @@ function Tile({ item, selected, onPick }: { item: PickerItem; selected: boolean;
                 {item.swatch && <span className="absolute inset-0" style={{ backgroundColor: item.swatch }} />}
 
                 {source && !failed && (
-                    // object-top: these renders are tall, and the middle of a
-                    // portrait is a torso. The face is what identifies it.
                     <img
                         src={source}
                         alt=""
@@ -97,9 +81,6 @@ export default function SETTINGS_PICKER() {
     const [custom, setCustom] = useState('');
     const listRef = useRef<HTMLDivElement | null>(null);
 
-    // Nothing to reset on a state change any more: the parent mounts this fresh
-    // every time it opens, so the initial state IS the clean state.
-
     const needle = query.trim().toLowerCase();
 
     const matches = items.filter(
@@ -118,8 +99,6 @@ export default function SETTINGS_PICKER() {
         if (trimmed) pick(trimmed);
     };
 
-    // Options with nothing to preview — animations, plain enums — read far
-    // better as full-width rows than as a grid of squares holding text.
     const visual = items.some((item) => item.image || item.swatch);
 
     return (
@@ -130,8 +109,6 @@ export default function SETTINGS_PICKER() {
             transition={{ duration: 0.22, ease: 'easeOut' }}
             className="h-full flex-shrink-0 overflow-hidden border-l border-white/15 bg-neutral-950"
         >
-            {/* The animated shell changes width; this keeps its own, so the
-                contents do not reflow on every frame of the open. */}
             <div className="flex h-full flex-col" style={{ width: PANEL_WIDTH }}>
             <div className="flex min-h-[5.8vh] flex-shrink-0 items-center gap-[1.2vh] border-b border-white/10 px-[1.4vh]">
                 <button
@@ -172,8 +149,6 @@ export default function SETTINGS_PICKER() {
                 className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-[1vh]"
             >
                 {visual ? (
-                    // Inline, not a Tailwind class: the count is per field, and
-                    // grid-cols-N cannot be built from a variable.
                     <div className="grid gap-[0.6vh]" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
                         {matches.slice(0, shown).map((item) => (
                             <Tile key={item.id} item={item} selected={item.id === value} onPick={() => pick(item.id)} />
@@ -195,8 +170,6 @@ export default function SETTINGS_PICKER() {
                 )}
             </div>
 
-            {/* Anything the list cannot contain — an addon ped, an unlisted id —
-                is typed here rather than being impossible to set. */}
             {allowCustom && (
                 <div className="flex-shrink-0 border-t border-white/10 p-[1.2vh]">
                     <div className="flex items-center gap-[0.8vh]">

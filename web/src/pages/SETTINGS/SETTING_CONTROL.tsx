@@ -8,16 +8,8 @@ import { PEDS, PED_BY_MODEL, pedImageUrl } from '@/data/peds';
 import { openPicker } from '@/data/usePicker';
 import { effectiveValue, useSettings, type SettingField, type SettingOption, type SettingType } from '@/data/useSettings';
 
-/**
- * The typed control kit for the settings editor. Every value type renders
- * through here — top-level entries, object sub-fields and list rows all share
- * the same primitives, which is what keeps the whole panel looking like one
- * instrument instead of a pile of forms.
- */
-
 const INPUT = 'h-[3.6vh] w-full rounded-[0.6vh] border border-white/10 bg-neutral-950/60 px-[1.1vh] text-[1.5vh] text-white/90 transition-colors focus:border-primary/60';
 
-/** Minimal definition a control needs — SettingEntry and SettingField both satisfy it. */
 export type ControlDef = {
     type?: SettingType;
     min?: number;
@@ -32,7 +24,6 @@ export type ControlDef = {
     min_items?: number;
     max_items?: number;
     nullable?: boolean;
-    /** coords only: sibling paths whose values drive the in-world preview. */
     preview_from?: Record<string, string>;
 };
 
@@ -46,9 +37,6 @@ type ControlProps = {
 //--------------------------------------------------
 // MARK: Path helpers
 //--------------------------------------------------
-// Object fields address their slot with dotted keys ("face.drawable"), exactly
-// like the Lua side's settings.read/write. Absence is meaningful for nullable
-// fields, so writing `undefined` deletes the key rather than storing a null.
 
 function readPath(root: unknown, path: string): unknown {
     let node: unknown = root;
@@ -109,8 +97,6 @@ function BooleanControl({ value, onChange, disabled }: ControlProps) {
 //--------------------------------------------------
 // MARK: Numbers
 //--------------------------------------------------
-// Free typing is buffered locally so "-", "" or a half-typed number never snaps
-// back mid-keystroke; the parsed value commits on blur or Enter.
 
 function NumberInput({
     value,
@@ -130,7 +116,6 @@ function NumberInput({
     step?: number;
     suffix?: string;
     disabled?: boolean;
-    /** Empty input commits `undefined` — used by nullable object fields. */
     allowEmpty?: boolean;
     className?: string;
 }) {
@@ -161,8 +146,6 @@ function NumberInput({
 
         setText(String(parsed));
 
-        // Focusing a field and leaving it is not an edit. Committing regardless
-        // would stage every field the admin merely clicked through.
         if (parsed !== value) onCommit(parsed);
     };
 
@@ -197,8 +180,6 @@ function NumberInput({
     );
 }
 
-// Always a typed field. Bounds are enforced on commit and shown as a hint on
-// the row, so a number is entered rather than dragged for.
 function NumericControl({ def, value, onChange, disabled }: ControlProps) {
     const numeric = typeof value === 'number' ? value : undefined;
 
@@ -217,11 +198,6 @@ function optionLabel(option: SettingOption): string {
     return typeof option === 'string' ? option : option.label;
 }
 
-/**
- * Past this many options a dropdown stops being scannable and needs a search
- * box, so the field opens the side drawer instead. Below it — cash/bank, a
- * handful of positions — a dropdown is faster than a panel sliding in.
- */
 const ENUM_DRAWER_THRESHOLD = 6;
 
 function EnumControl({ def, value, onChange, disabled }: ControlProps) {
@@ -255,8 +231,6 @@ function EnumControl({ def, value, onChange, disabled }: ControlProps) {
     const toggle = () => {
         if (disabled) return;
 
-        // Flip the menu upward when the trigger sits in the lower part of the
-        // viewport, so it never gets clipped by the scrolling settings list.
         const rect = buttonRef.current?.getBoundingClientRect();
         setOpenUp(!!rect && rect.bottom > window.innerHeight * 0.62);
         setOpen((current) => !current);
@@ -275,8 +249,6 @@ function EnumControl({ def, value, onChange, disabled }: ControlProps) {
                 <i className={`fas fa-chevron-down flex-shrink-0 text-[1.1vh] text-white/40 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* The panel is itself the scroller, so overscroll-contain is enough
-                to keep the settings list behind it still. */}
             {open && (
                 <>
                     <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
@@ -315,19 +287,9 @@ function EnumControl({ def, value, onChange, disabled }: ControlProps) {
 //--------------------------------------------------
 // MARK: Coords
 //--------------------------------------------------
-// A world position is placed in game, not typed. The numbers stay visible
-// because they are worth reading back, but they are not the way in.
 
 type Coords = { x: number; y: number; z: number; heading: number };
 
-/**
- * One position out of whatever the admin pasted.
- *
- * Accepts the shapes a position actually gets copied from: `vector4(x, y, z, h)`
- * straight out of a config, the shorthand `vec4`/`vec3` forms, or bare numbers
- * separated by commas or spaces. The label is stripped before the numbers are
- * read, or the 4 in `vec4` would be parsed as the X coordinate.
- */
 export function parseCoords(text: string): Coords | null {
     const numbers = text.replace(/vec(?:tor)?[234]?/gi, ' ').match(/-?\d+(?:\.\d+)?/g);
     if (!numbers || numbers.length < 3) return null;
@@ -338,13 +300,6 @@ export function parseCoords(text: string): Coords | null {
     return { x, y, z, heading: normaliseHeading(heading) };
 }
 
-/**
- * Only wraps a heading that is actually out of range.
- *
- * `((h % 360) + 360) % 360` drifts a valid heading by a float ulp — 324.44
- * comes back as 324.44000000000005 — which is enough to make a position differ
- * from its default forever and re-save on every visit.
- */
 function normaliseHeading(value: number): number {
     if (!Number.isFinite(value)) return 0;
     if (value >= 0 && value < 360) return value;
@@ -352,12 +307,9 @@ function normaliseHeading(value: number): number {
     return ((value % 360) + 360) % 360;
 }
 
-/** Every position in a pasted block — one per vector4(), else one per line. */
 export function parseCoordsList(text: string): Coords[] {
     const out: Coords[] = [];
 
-    // A whole config block pastes as one line, so the vector calls are what
-    // separate the entries there — not the newlines.
     const groups = text.match(/vec(?:tor)?[234]?\s*\([^)]*\)/gi);
 
     for (const chunk of groups ?? text.split(/[\r\n]+/)) {
@@ -368,7 +320,6 @@ export function parseCoordsList(text: string): Coords[] {
     return out;
 }
 
-/** Round-trips through parseCoords, so what is shown can be pasted back in. */
 export function formatCoords(value: Partial<Coords> | null | undefined): string {
     if (!value || typeof value.x !== 'number') return '';
 
@@ -385,18 +336,12 @@ export type RowAction = {
     id: string;
     label: string;
     icon: string;
-    /** Rendered below a divider, in red. Delete lives here. */
     danger?: boolean;
     disabled?: boolean;
     busy?: boolean;
     run: () => void;
 };
 
-/**
- * The one place a row's verbs live. A position can be re-placed, teleported to
- * or removed, and hanging three buttons off every row buries the values they
- * belong to — so they collapse into a single menu instead.
- */
 function RowActions({ actions, disabled }: { actions: RowAction[]; disabled?: boolean }) {
     const [open, setOpen] = useState(false);
     const [upward, setUpward] = useState(false);
@@ -435,8 +380,6 @@ function RowActions({ actions, disabled }: { actions: RowAction[]; disabled?: bo
             <button
                 type="button"
                 onClick={(event) => {
-                    // Menus near the bottom of a scrolling list would open into
-                    // the clipped area, so they flip up instead.
                     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
                     setUpward(window.innerHeight - rect.bottom < usable.length * 42 + 40);
                     setOpen((state) => !state);
@@ -491,12 +434,6 @@ function RowActions({ actions, disabled }: { actions: RowAction[]; disabled?: bo
     );
 }
 
-/**
- * Turn { model: "settings.depot.ped_model" } into { model: "g_m_m_armboss_01" }
- * by reading those paths out of the script currently open, staged edits
- * included — placing a ped right after changing its model should preview the
- * new one.
- */
 function resolvePreview(from: Record<string, string> | undefined): Record<string, unknown> | undefined {
     if (!from) return undefined;
 
@@ -518,15 +455,13 @@ function CoordsControl({ def, value, onChange, disabled }: ControlProps) {
     const [placing, setPlacing] = useState(false);
     const current = (value ?? {}) as Partial<Coords>;
 
-    const pick = async () => {
+    const pick = async (from: Partial<Coords>) => {
         if (disabled || placing) return;
         setPlacing(true);
 
         try {
             const response = await fetchNui<{ ok: boolean; COORDS?: Coords }>('settings_pick_coords', {
-                current,
-                // `preview_from` names sibling settings holding the model and
-                // scenario, so the ped placed is the ped that will stand there.
+                current: from,
                 preview: resolvePreview(def.preview_from),
             });
 
@@ -536,19 +471,23 @@ function CoordsControl({ def, value, onChange, disabled }: ControlProps) {
         }
     };
 
+    const placed = typeof current.x === 'number';
+
     return (
         <div className="flex w-full items-center gap-[0.6vh]">
             <CoordsFields value={current} disabled={disabled} onChange={onChange} />
-            <RowActions disabled={disabled} actions={[placeAction(pick, placing), teleportAction(current)]} />
+            <RowActions
+                disabled={disabled}
+                actions={[
+                    editAction(() => void pick(current), placing, !placed),
+                    placeAction(() => void pick({}), placing),
+                    teleportAction(current),
+                ]}
+            />
         </div>
     );
 }
 
-/**
- * One box, not four cells. A position is edited by pasting a whole one over the
- * top of it far more often than by nudging a single axis, and four separate
- * inputs make that the awkward path instead of the easy one.
- */
 function CoordsFields({ value, disabled, onChange }: { value: Partial<Coords>; disabled?: boolean; onChange: (next: Coords) => void }) {
     const [text, setText] = useState(formatCoords(value));
     const [focused, setFocused] = useState(false);
@@ -560,7 +499,6 @@ function CoordsFields({ value, disabled, onChange }: { value: Partial<Coords>; d
     const commit = (raw: string) => {
         const parsed = parseCoords(raw);
 
-        // Unparseable input reverts rather than storing a broken position.
         if (!parsed) {
             setText(formatCoords(value));
             return;
@@ -569,9 +507,6 @@ function CoordsFields({ value, disabled, onChange }: { value: Partial<Coords>; d
         const next = formatCoords(parsed);
         setText(next);
 
-        // Compared as displayed, not as stored: the box shows two decimals, so
-        // re-committing what it shows is a no-op even when the stored value
-        // carries more precision than that.
         if (next !== formatCoords(value)) onChange(parsed);
     };
 
@@ -588,8 +523,6 @@ function CoordsFields({ value, disabled, onChange }: { value: Partial<Coords>; d
                 const parsed = parseCoords(event.clipboardData.getData('text'));
                 if (!parsed) return;
 
-                // Tidied the moment it lands, so a pasted vector4(...) or a
-                // vector3 short of a heading reads back as plain numbers.
                 event.preventDefault();
 
                 const next = formatCoords(parsed);
@@ -606,9 +539,12 @@ function CoordsFields({ value, disabled, onChange }: { value: Partial<Coords>; d
     );
 }
 
-/** Shared by the standalone control and every row in a position list. */
 function placeAction(run: () => void, busy: boolean): RowAction {
-    return { id: 'place', label: t('settings_place_in_world'), icon: 'fa-location-crosshairs', busy, run };
+    return { id: 'place', label: t('settings_place_new'), icon: 'fa-location-crosshairs', busy, run };
+}
+
+function editAction(run: () => void, busy: boolean, disabled?: boolean): RowAction {
+    return { id: 'edit', label: t('settings_edit_position'), icon: 'fa-arrows-up-down-left-right', busy, disabled, run };
 }
 
 function teleportAction(coords: Partial<Coords>): RowAction {
@@ -624,13 +560,7 @@ function teleportAction(coords: Partial<Coords>): RowAction {
 //--------------------------------------------------
 // MARK: Drawer Pickers
 //--------------------------------------------------
-// Blip colors, blip icons and peds are all the same shape of problem: a few
-// hundred options that cannot be judged from a name. They open the side drawer
-// rather than a dropdown -- a dropdown is bounded by the width of the value
-// column it hangs off, which is not enough room for a legible grid, a search
-// box and a custom entry at once.
 
-/** The field itself: a preview, the current value, and a hint that it opens. */
 function DrawerTrigger({
     preview,
     label,
@@ -772,8 +702,6 @@ function ColorControl({ value, onChange, disabled }: ControlProps) {
     const color = String(value ?? '#ffffff');
     const hex = toHex(color);
 
-    // The picker and the presets only speak hex; keep whichever notation the
-    // setting was already written in.
     const emit = (next: string) => onChange(matchColorNotation(next, color));
 
     useEffect(() => {
@@ -813,7 +741,6 @@ function ColorControl({ value, onChange, disabled }: ControlProps) {
                 />
             </div>
 
-            {/* Expands inline rather than floating, so it can never be clipped by the scroll container. */}
             {open && !disabled && (
                 <div className="mt-[0.8vh] w-full rounded-[0.8vh] border border-white/10 bg-neutral-950/70 p-[1.2vh]">
                     <HexColorPicker color={hex} onChange={(next) => emit(next)} style={{ width: '100%', height: '14vh' }} />
@@ -879,8 +806,6 @@ function TimeControl({ value, onChange, disabled }: ControlProps) {
 //--------------------------------------------------
 // MARK: Keybind
 //--------------------------------------------------
-// Capture mode is flagged on <body> so the global Escape handler in
-// PAGE_HANDLER knows an Escape here means "cancel capture", not "close the UI".
 
 function KeybindControl({ value, onChange, disabled }: ControlProps) {
     const [capturing, setCapturing] = useState(false);
@@ -959,7 +884,6 @@ function ObjectControl({ def, value, onChange, disabled }: ControlProps) {
     const record = value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
     const fields = def.fields ?? [];
 
-    // Wide objects (the uniform's 24 slots) pack tighter than a 2-field position.
     const columns = fields.length > 8 ? 'grid-cols-4' : fields.length > 2 ? 'grid-cols-3' : 'grid-cols-2';
 
     return (
@@ -994,10 +918,6 @@ function ObjectControl({ def, value, onChange, disabled }: ControlProps) {
 // MARK: List
 //--------------------------------------------------
 
-/**
- * A row's one-line summary while collapsed — its name, then whatever short
- * scalars follow. Enough to pick the right row out without opening it.
- */
 function rowSummary(row: unknown, fields: SettingField[]): string {
     if (row === null || typeof row !== 'object') return String(row ?? '');
 
@@ -1016,12 +936,6 @@ function rowSummary(row: unknown, fields: SettingField[]): string {
     return parts.join('  ·  ');
 }
 
-/**
- * The wide fields inside a row, as "51 Pickup Points" labels.
- *
- * A zone row is three short columns and then fifty-one coordinates. Without
- * this the row gives no sign the coordinates are in there at all.
- */
 function nestedCounts(row: unknown, fields: SettingField[]): { label: string; count: number }[] {
     if (row === null || typeof row !== 'object') return [];
 
@@ -1037,15 +951,8 @@ function nestedCounts(row: unknown, fields: SettingField[]): { label: string; co
     return out;
 }
 
-/** Rows rendered at once. A rider roster is 200+ long; mounting it all stutters. */
 export const ROWS_PER_PAGE = 20;
 
-/**
- * Which rows a filter leaves visible, as indices into the full list.
- *
- * Indices stay absolute on purpose: page 6 row 3 must still write row 103 of
- * the stored value, and a filtered view must edit the row it actually found.
- */
 export function visibleIndices(rows: unknown[], itemFields: SettingField[] | undefined, needle: string): number[] {
     const all = rows.map((_, index) => index);
 
@@ -1061,9 +968,6 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
     const canRemove = rows.length > (def.min_items ?? 0);
     const canAdd = def.max_items === undefined || rows.length < def.max_items;
 
-    // A row holding a nested list or object opens on its own rather than in
-    // place: a zone carries fifty-one coordinates, which is a page, not a
-    // drawer. A row of plain scalars stays inline.
     const nested = (itemFields ?? []).some((field) => isWideType(field.type));
     const [openRow, setOpenRow] = useState<number | null>(null);
 
@@ -1073,17 +977,11 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
     const [replacingRow, setReplacingRow] = useState<number | null>(null);
     const [importText, setImportText] = useState<string | null>(null);
 
-    // A bare list of positions: placed in the world, typed, or pasted in bulk.
     const coordsList = !itemFields && def.item_type === 'coords';
     const imported = importText === null ? [] : parseCoordsList(importText);
 
-    // Filtering works on the whole list, not the page, so a name on page 9 is
-    // still findable. Indices stay absolute: editing row 3 of a filtered view
-    // has to write row 187 of the value.
     const needle = filter;
 
-    // Only object rows have anything to match on. A list of bare coordinates
-    // still pages, but there is no text in it to filter by.
     const filterable = Boolean(itemFields);
 
     const indices = useMemo(() => visibleIndices(rows, itemFields, needle), [rows, needle, itemFields]);
@@ -1093,7 +991,6 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
     const paged = indices.slice(current * ROWS_PER_PAGE, current * ROWS_PER_PAGE + ROWS_PER_PAGE);
     const paginated = indices.length > ROWS_PER_PAGE;
 
-    // Columns are sized off the narrow fields, since a wide one takes its own row.
     const narrowCount = (itemFields ?? []).filter((field) => !isWideType(field.type)).length;
     const columns = Math.min(Math.max(narrowCount, 1), 4);
 
@@ -1107,7 +1004,6 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
         onChange(rows.filter((_, rowIndex) => rowIndex !== index));
     };
 
-    // Land on the new row rather than leaving it on a page nobody is looking at.
     const focusNewRow = () => {
         setFilter('');
         setPage(Math.floor(rows.length / ROWS_PER_PAGE));
@@ -1119,21 +1015,12 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
         focusNewRow();
     };
 
-    /** Opens the placement tool seeded from `from`, and returns what was placed. */
     const placeFrom = async (from: Partial<Coords>) =>
         fetchNui<{ ok: boolean; COORDS?: Coords }>('settings_pick_coords', {
             current: from,
             preview: resolvePreview(def.preview_from),
         });
 
-    /**
-     * A list of positions has nothing sensible to seed a blank row with — 0,0,0
-     * is in the ocean. So adding one goes straight out to the placement tool and
-     * appends whatever comes back, and cancelling adds nothing at all.
-     *
-     * Seeded from the last point so the tool opens on the cluster being extended
-     * rather than wherever the admin happens to be standing.
-     */
     const addPlacedRow = async () => {
         if (disabled || placing) return;
         setPlacing(true);
@@ -1150,7 +1037,6 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
         }
     };
 
-    /** Re-place one that already exists, starting the tool where it currently sits. */
     const replaceRow = async (index: number) => {
         if (disabled || replacingRow !== null) return;
         setReplacingRow(index);
@@ -1173,7 +1059,6 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
         run: () => removeRow(index),
     });
 
-    /** Every row carries the same menu; a position row just has more in it. */
     const rowActions = (index: number) => <RowActions disabled={disabled} actions={[deleteAction(index)]} />;
 
     const fieldGrid = (row: unknown, index: number) => (
@@ -1198,8 +1083,6 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
         </div>
     );
 
-    // One row, on its own, with a way back. Rendered instead of the list so a
-    // zone's coordinates are not competing with the other zones for the page.
     if (nested && openRow !== null && rows[openRow] !== undefined) {
         return (
             <div className="flex w-full flex-col gap-[1vh]">
@@ -1289,8 +1172,6 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
                             <span className="flex h-[3.6vh] w-[3vh] flex-shrink-0 items-center justify-center rounded-[0.5vh] bg-white/5 font-mono text-[1.3vh] text-white/40">{index + 1}</span>
                             <span className="truncate text-[1.5vh] font-semibold text-white/80">{rowSummary(row, itemFields!)}</span>
 
-                            {/* What is one level down, so the row says what
-                                opening it is worth before it is opened. */}
                             <span className="ml-auto flex flex-shrink-0 items-center gap-[1vh]">
                                 {nestedCounts(row, itemFields!).map((entry) => (
                                     <span key={entry.label} className="font-mono text-[1.2vh] text-white/35">
@@ -1329,7 +1210,7 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
                             <RowActions
                                 disabled={disabled}
                                 actions={[
-                                    placeAction(() => void replaceRow(index), replacingRow === index),
+                                    editAction(() => void replaceRow(index), replacingRow === index),
                                     teleportAction((row ?? {}) as Partial<Coords>),
                                     deleteAction(index),
                                 ]}
@@ -1481,7 +1362,6 @@ export default function SettingControl(props: ControlProps) {
     }
 }
 
-/** Wide types claim the full row under the label instead of the trailing slot. */
 export function isWideType(type: SettingType | undefined): boolean {
     return type === 'object' || type === 'list' || type === 'coords';
 }

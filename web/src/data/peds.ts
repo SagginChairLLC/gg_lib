@@ -1,18 +1,6 @@
-/**
- * Ped model reference for the `ped` setting type.
- *
- * Names come from the FiveM ped model list, and the previews come from the same
- * place. The list is a convenience, never a restriction: the control also takes
- * a typed name, so an addon or custom ped works even though it can never appear
- * here — it simply shows without a preview.
- */
 
 export type Ped = { model: string; category: string };
 
-/**
- * Grouped rather than one entry per line: the category repeats for hundreds of
- * models, and this keeps the bundle honest.
- */
 const PED_DATA: Record<string, string> = {
     'Ambient Female':
         'a_f_m_beach_01,a_f_m_bevhills_01,a_f_m_bevhills_02,a_f_m_bodybuild_01,a_f_m_business_02,a_f_m_downtown_01,a_f_m_eastsa_01,a_f_m_eastsa_02,a_f_m_fatbla_01,a_f_m_fatcult_01,a_f_m_fatwhite_01,a_f_m_ktown_01,a_f_m_ktown_02,a_f_m_prolhost_01,a_f_m_salton_01,a_f_m_skidrow_01,a_f_m_soucent_01,a_f_m_soucent_02,a_f_m_soucentmc_01,a_f_m_tourist_01,a_f_m_tramp_01,a_f_m_trampbeac_01,a_f_o_genstreet_01,a_f_o_indian_01,a_f_o_ktown_01,a_f_o_salton_01,a_f_o_soucent_01,a_f_o_soucent_02,a_f_y_beach_01,a_f_y_bevhills_01,a_f_y_bevhills_02,a_f_y_bevhills_03,a_f_y_bevhills_04,a_f_y_business_01,a_f_y_business_02,a_f_y_business_03,a_f_y_business_04,a_f_y_clubcust_01,a_f_y_clubcust_02,a_f_y_clubcust_03,a_f_y_eastsa_01,a_f_y_eastsa_02,a_f_y_eastsa_03,a_f_y_epsilon_01,a_f_y_femaleagent,a_f_y_fitness_01,a_f_y_fitness_02,a_f_y_genhot_01,a_f_y_golfer_01,a_f_y_hiker_01,a_f_y_hippie_01,a_f_y_hipster_01,a_f_y_hipster_02,a_f_y_hipster_03,a_f_y_hipster_04,a_f_y_indian_01,a_f_y_juggalo_01,a_f_y_runner_01,a_f_y_rurmeth_01,a_f_y_scdressy_01,a_f_y_skater_01,a_f_y_soucent_01,a_f_y_soucent_02,a_f_y_soucent_03,a_f_y_tennis_01,a_f_y_topless_01,a_f_y_tourist_01,a_f_y_tourist_02,a_f_y_vinewood_01,a_f_y_vinewood_02,a_f_y_vinewood_03,a_f_y_vinewood_04,a_f_y_gencaspat_01,a_f_y_smartcaspat_01,a_f_y_yoga_01',
@@ -35,12 +23,6 @@ export const PEDS: Ped[] = Object.entries(PED_DATA).flatMap(([category, models])
 
 export const PED_BY_MODEL = new Map(PEDS.map((ped) => [ped.model, ped]));
 
-/**
- * Previews are served by the FiveM docs backend rather than bundled — several
- * hundred images is not worth shipping in the resource. They fail soft: a
- * custom or addon ped simply has no preview, which is the expected case rather
- * than an error.
- */
 export function pedImageUrl(model: string): string {
     return `https://docs-backend.fivem.net/peds/${model}.webp`;
 }

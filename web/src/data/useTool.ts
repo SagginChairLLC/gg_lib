@@ -1,13 +1,7 @@
 import { create } from 'zustand';
 
-/**
- * Keybind legend for gg.tool. Any modal in-game tool pushes its title and key
- * list here and the HUD renders it, so no tool draws its own on-screen text.
- */
-
 export type ToolKey = { key: string; label: string };
 
-/** Live readout rows — position, heading, mode. Pushed only when they change. */
 export type ToolInfo = { label: string; value: string };
 
 type ToolState = {
@@ -40,8 +34,6 @@ export function applyToolState(data: ToolPayload) {
         return;
     }
 
-    // Info arrives on its own far more often than the key list does, so a
-    // payload without KEYS is a readout update and must not blank the legend.
     useTool.setState((state) => ({
         active: true,
         title: data.TITLE ?? state.title,

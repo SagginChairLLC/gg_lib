@@ -4,13 +4,6 @@ import { t } from '@/data/useLang';
 import { clearAdminsError, fetchAdmins, grantAdmin, revokeAdmin, useAdmins, type AdminEntry } from '@/data/useAdmins';
 import { highlight } from './settings-utils';
 
-/**
- * Admin management, rendered in place of a script's settings sections. Two
- * lists: who has access now, and who is online to grant it to. Config entries
- * come from server_config.lua and are shown but never revocable here.
- */
-
-/** license2:6e713bc4… — full identifiers are unreadable at a glance. */
 function shortIdentifier(identifier: string): string {
     const [kind, value] = identifier.split(':');
     if (!value) return identifier;
@@ -26,8 +19,6 @@ function AdminRow({ entry, query, disabled, onRevoke }: { entry: AdminEntry; que
     const [confirming, setConfirming] = useState(false);
     const isConfig = entry.source === 'config';
 
-    // A stale confirm sitting armed after the admin moves on is a misclick
-    // waiting to happen.
     useEffect(() => {
         if (!confirming) return;
 
@@ -123,7 +114,6 @@ export default function SETTINGS_ADMINS({ canEdit, query }: { canEdit: boolean; 
 
     return (
         <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-[2vh] py-[1.6vh]">
-            {/* Who has access */}
             <section className="mb-[2.4vh]">
                 <div className="mb-[1vh] flex items-baseline gap-[1vh] border-b border-white/5 pb-[0.8vh]">
                     <i className="fas fa-user-shield text-[1.6vh] text-primary/80" />
@@ -140,7 +130,6 @@ export default function SETTINGS_ADMINS({ canEdit, query }: { canEdit: boolean; 
                 </div>
             </section>
 
-            {/* Grant to someone online */}
             <section className="mb-[2.4vh]">
                 <div className="mb-[1vh] flex items-baseline gap-[1vh] border-b border-white/5 pb-[0.8vh]">
                     <i className="fas fa-users text-[1.6vh] text-primary/80" />
@@ -174,7 +163,6 @@ export default function SETTINGS_ADMINS({ canEdit, query }: { canEdit: boolean; 
                 </div>
             </section>
 
-            {/* Offline grants: paste the identifier straight in. */}
             <section>
                 <div className="mb-[1vh] flex items-baseline gap-[1vh] border-b border-white/5 pb-[0.8vh]">
                     <i className="fas fa-keyboard text-[1.6vh] text-primary/80" />
@@ -205,7 +193,6 @@ export default function SETTINGS_ADMINS({ canEdit, query }: { canEdit: boolean; 
                 <p className="mt-[0.8vh] text-[1.25vh] text-white/30">{t('admins_identifier_hint')}</p>
             </section>
 
-            {/* Errors come back from the server verbatim — they explain the refusal. */}
             <AnimatePresence>
                 {error && (
                     <motion.div

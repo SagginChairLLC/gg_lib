@@ -1,6 +1,5 @@
 gg.menu = gg.menu or {}
 
-
 gg.menu.open = function(data, options)
     local id, title, menu = data.id, data.title, data.menu
     if GetResourceState("lation_ui") == "started" then
@@ -80,7 +79,6 @@ gg.menu.alertDialog = function(data)
     end
 end
 
-
 gg.menu.getOpenContextMenu = function()
     if GetResourceState("lation_ui") == "started" then
         return exports.lation_ui:getOpenMenu()
@@ -88,16 +86,3 @@ gg.menu.getOpenContextMenu = function()
         return lib.getOpenContextMenu()
     end    
 end
-
-
--- gg.display.openMenu = function(data, options)
---     local id, title, menu = data.id, data.title, data.menu
-
---     lib.registerContext({
---         id = id,
---         title = title,
---         menu = menu,
---         options = table.unpack({options})
---     })
---     lib.showContext(id)
--- end

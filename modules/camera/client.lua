@@ -23,15 +23,12 @@ gg.camera.createCameraNPC = function(entity, offset)
     camera = cam
 end
 
-
-
 gg.camera.createCameraCoord = function(coord, offset, rotation)
     if not coord or type(coord) ~= "table" then return end
 
     local offset = offset or {0.0, 0.0, 0.0}
     local rotation = rotation or {0.0, 0.0, 0.0}
 
-    -- Apply heading rotation to offset
     local heading = coord[4] or 0.0
     local hRad = math.rad(heading)
     local ox, oy = offset[1] or 0.0, offset[2] or 0.0
@@ -51,8 +48,6 @@ gg.camera.createCameraCoord = function(coord, offset, rotation)
 
     camera = cam
 end
-
-
 
 gg.camera.removeCamera = function()
     if camera then

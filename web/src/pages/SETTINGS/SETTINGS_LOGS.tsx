@@ -3,14 +3,6 @@ import { t } from '@/data/useLang';
 import { fetchNui, isEnvBrowser } from '@/lib/fetchNui';
 import { highlight } from './settings-utils';
 
-/**
- * Who changed what, and when. The settings tables are overwritten in place, so
- * this is the only record of what a value used to be or who set it.
- *
- * Read-only by design: an audit trail that can be edited from the same screen
- * as the thing it audits is not one.
- */
-
 export type LogRow = {
     resource: string;
     path: string;
@@ -111,8 +103,6 @@ export default function SETTINGS_LOGS({ query }: { query: string }) {
                                 <span className="ml-auto flex-shrink-0 font-mono text-[1.15vh] text-white/30">{row.changed_at}</span>
                             </div>
 
-                            {/* Old and new sit together: a value on its own says
-                                nothing about what it replaced. */}
                             {(row.old !== undefined || row.new !== undefined) && (
                                 <div className="mt-[0.6vh] flex items-center gap-[0.8vh] pl-[2.7vh] font-mono text-[1.2vh]">
                                     <span className="max-w-[38%] truncate text-white/35 line-through">{row.old ?? t('logs_unset')}</span>

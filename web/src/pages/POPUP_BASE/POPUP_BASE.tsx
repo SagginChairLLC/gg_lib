@@ -49,9 +49,6 @@ const PopupComponent = React.memo(() => {
         };
     };
 
-    // vh throughout, never px or the rem-based spacing scale: both are fixed
-    // sizes, so they grow relative to the design on a small screen and shrink
-    // on a large one. Sizing off height keeps the popup identical everywhere.
     const PopupContent = () => (
         <div className="flex h-full min-h-[3.7vh] w-full min-w-[2.3vh] flex-row items-center justify-center">
             <i className="fas fa-circle-info absolute left-[1.1vh] top-1/2 z-50 h-fit w-fit -translate-y-1/2 rounded-full border border-primary/75 bg-primary/25 p-[0.5vh] text-[2vh] text-primary/75"></i>

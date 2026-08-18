@@ -1,16 +1,5 @@
 gg.dispatch = gg.dispatch or {}
 
----@param data table
---- data.message   string   | Dispatch message text
---- data.code      string   | Dispatch code (e.g. "10-80")
---- data.icon      string   | FontAwesome icon string (mapped into info block)
---- data.priority  number   | Priority level (1 = high, 3 = low)
---- data.coords    vector3  | Location for the dispatch alert
---- data.vehicle   number   | Vehicle entity (optional)
---- data.plate     string   | Vehicle plate (optional)
---- data.time      number   | Alert duration in ms (not directly supported by l2s)
---- data.jobs      table    | List of jobs who see the alert (mapped into departments)
---- data.blipData  table    | Blip config {radius, sprite, color, scale, length, flash}
 gg.dispatch.alert = function(data)
     local playerData = exports['l2s-dispatch']:GetPlayerData()
     TriggerServerEvent('l2s-dispatch:server:AddNotification', {

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import type { SettingEntry } from '@/data/useSettings';
 
-/** Case-insensitive substring test used by both the global and script search. */
 export function matchesQuery(entry: SettingEntry, groupLabel: string, query: string): boolean {
     if (!query) return true;
 
@@ -19,7 +18,6 @@ export function matchesQuery(entry: SettingEntry, groupLabel: string, query: str
     return haystacks.some((haystack) => haystack.toLowerCase().includes(needle));
 }
 
-/** Wraps the matched substring so search results show why they matched. */
 export function highlight(text: string, query: string): ReactNode {
     if (!query) return text;
 
@@ -35,11 +33,6 @@ export function highlight(text: string, query: string): ReactNode {
     );
 }
 
-/**
- * What a field accepts, for the badge beside its label. Controls that already
- * say it themselves — a toggle, a dropdown, a color swatch — return null
- * rather than repeating it.
- */
 export function typeHint(entry: SettingEntry): string | null {
     switch (entry.type) {
         case 'number':
@@ -63,13 +56,11 @@ export function typeHint(entry: SettingEntry): string | null {
         case 'time':
             return 'Time · HH:MM';
 
-        // The pickers show the id next to the name, so the type is self-evident.
         default:
             return null;
     }
 }
 
-/** Short human preview of a value for result rows and "Default:" hints. */
 export function previewValue(value: unknown): string {
     if (value === null || value === undefined) return '—';
     if (typeof value === 'boolean') return value ? 'On' : 'Off';

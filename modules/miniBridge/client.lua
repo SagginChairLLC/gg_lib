@@ -1,8 +1,6 @@
 gg = gg or {} gg.fuel = gg.fuel or {} gg.keys = gg.keys or {}
 
-
 -- MARK: Get Fuel
----@param veh number Vehicle Entity Id
 gg.fuel.getFuel = function(veh)
     if type(veh) ~= "number" or veh == 0 or not DoesEntityExist(veh) then return end
 
@@ -42,8 +40,6 @@ gg.fuel.getFuel = function(veh)
 end
 
 -- MARK: Set Fuel
----@param veh number Vehicle Entity Id
----@param val number Fuel level
 gg.fuel.setFuel = function(veh, val)
     if type(veh) ~= "number" or veh == 0 or not DoesEntityExist(veh) then return end
     if type(val) ~= "number" then val = 100.0 end
@@ -85,7 +81,6 @@ gg.fuel.setFuel = function(veh, val)
 end
 
 -- MARK: Add Keys
----@param veh number Vehicle Entity Id
 gg.keys.AddKeys = function(veh)
     if type(veh) ~= "number" or veh == 0 or not DoesEntityExist(veh) then return end
 
@@ -135,12 +130,10 @@ gg.keys.AddKeys = function(veh)
     elseif GetResourceState('wasabi_carlock') == 'started' then
         return exports.wasabi_carlock:GiveKey(plate)
     else
-        -- Default add keys
     end
 end
 
 -- MARK: Remove Keys
----@param veh number Vehicle Entity Id
 gg.keys.RemoveKeys = function(veh)
     if type(veh) ~= "number" or veh == 0 or not DoesEntityExist(veh) then return end
 
@@ -154,10 +147,8 @@ gg.keys.RemoveKeys = function(veh)
     elseif GetResourceState('brutal_keys') == 'started' then
         return exports.brutal_keys:removeKey(plate, true)
     elseif GetResourceState('cd_garage') == 'started' then
-        -- No Remove Key Event
         return false
     elseif GetResourceState('F_RealCarKeysSystem') == 'started' then
-        -- No Remove Key Event
         return false
     elseif GetResourceState('mk_vehiclekeys') == 'started' then
         return exports['mk_vehiclekeys']:RemoveKey(veh)
@@ -174,15 +165,12 @@ gg.keys.RemoveKeys = function(veh)
     elseif GetResourceState('Renewed-Vehiclekeys') == 'started' then
         return exports['Renewed-Vehiclekeys']:removeKey(plate)
     elseif GetResourceState('qb-vehiclekeys') == 'started' then
-        -- No Remove Key Event
         return false
     elseif GetResourceState('qbx_vehiclekeys') == 'started' then
-        -- No Remove Key Event
         return false
     elseif GetResourceState('qs-vehiclekeys') == 'started' then
         return exports['qs-vehiclekeys']:RemoveKeys(plate, displayName)
     elseif GetResourceState('tgiann-hotwire') == 'started' then
-        -- No Remove Key Event
         return false
     elseif GetResourceState('vehicles_keys') == 'started' then
         TriggerServerEvent('vehicles_keys:selfRemoveKeys', plate)
@@ -190,6 +178,5 @@ gg.keys.RemoveKeys = function(veh)
     elseif GetResourceState('wasabi_carlock') == 'started' then
         return exports.wasabi_carlock:RemoveKey(plate)
     else
-        -- Default remove keys
     end
 end

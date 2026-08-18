@@ -3,9 +3,14 @@ local framework_core = nil
 
 gg.display = gg.display or {}
 
+local function provider(path, fallback)
+    local chosen = settings and settings.generic and settings.generic.get(path)
+
+    return (type(chosen) == "string" and chosen ~= "" and chosen) or fallback
+end
 
 gg.display.notify = function(message)
-    local _type = utility.notifications
+    local _type = provider("interface.notifications", utility.notifications)
     if _type == 'ox' then
         return lib.notify({ title = message.title, description = message.msg, duration = message.timeout, type = message.status, icon = message.icon})
     elseif _type == 'mythic' then
@@ -29,16 +34,13 @@ gg.display.notify = function(message)
     elseif _type == 'esx' then
         return TriggerEvent('esx:showNotification', message.msg)
     elseif _type == 'custom' then
-        -- add your custom notification here
     end
 end
 
 gg.display.DoTextui = function(text)
-    local _type = utility.textUi
+    local _type = provider("interface.textui", utility.textUi)
     if _type == 'ox' then
         return lib.showTextUI(text.msg)
-        --an example
-        --lib.showTextUI(text.msg, {position = text.position,icon = text.icon,})
     elseif _type == 'jg' then
         return exports['jg-textui']:DrawText(text.msg)
     elseif _type == 'qb' then
@@ -48,12 +50,11 @@ gg.display.DoTextui = function(text)
     elseif _type == 'lab' then
         return exports['lab-HintUI']:Show(text.msg)
     elseif _type == 'custom' then
-        --do stuff here
     end
 end
 
 gg.display.RemoveTextui = function()
-    local _type = utility.textUi
+    local _type = provider("interface.textui", utility.textUi)
     if _type == 'ox' then
         return lib.hideTextUI()
     elseif _type == 'jg' then
@@ -65,7 +66,6 @@ gg.display.RemoveTextui = function()
     elseif _type == 'lab' then
         return exports['lab-HintUI']:Hide()
     elseif _type == 'custom' then
-        --do stuff here
     end
 end
 
@@ -73,11 +73,8 @@ RegisterNetEvent(GetCurrentResourceName()..':client:notify', function(data)
     gg.display.notify(data)
 end)
 
--- @param data.duration
--- @param data.label
--- @param data
 gg.display.ProgressBar = function(data)
-    local _type = utility.ProgressBar
+    local _type = provider("interface.progressbar", utility.ProgressBar)
     local success = false
     local p = promise.new()
     if _type == "qb" and GetResourceState("qb-core") == "started" then

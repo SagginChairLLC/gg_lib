@@ -1,17 +1,6 @@
 import { motion } from 'framer-motion';
 import { useTool } from '@/data/useTool';
 
-/**
- * The panel for any gg.tool session: a live readout, then the keybinds listed
- * top down. It sits in the top-left so it never covers what the player is
- * pointing at, and it is the only thing a tool draws — nothing goes through the
- * game's own text or marker natives.
- *
- * No backdrop-filter and no large soft shadow: this page is transparent over
- * the game, so CEF has nothing behind it to sample. A backdrop blur composites
- * against black and paints a solid rectangle around the panel.
- */
-
 export default function TOOL_HUD() {
     const title = useTool((state) => state.title);
     const mode = useTool((state) => state.mode);

@@ -9,14 +9,10 @@ gg.framework.getItemTable = function(item)
     return itemData or item
 end
 
---- Get the player's job and gang information.
--- @return string, boolean: The player's job name and gang status (always false).
 gg.framework.GetPlayerGroups = function()
     return PlayerData.job.name, false
 end
 
---- Get detailed job information for the player.
--- @return table: A table containing job details (name, grade, label).
 gg.framework.GetPlayerGroupInfo = function()
     local jobInfo = {
         name = PlayerData.job.name,
@@ -30,7 +26,6 @@ local cachedVehicles = {}
 local lastVehicleRequest = 0
 local cacheDuration = 600000    -- 10 Minutes until able to refresh
 
--- @param modelHash number | The vehicle model hash
 gg.framework.ValidateVehicleHash = function(modelHash)
     if not modelHash then return 0 end
 

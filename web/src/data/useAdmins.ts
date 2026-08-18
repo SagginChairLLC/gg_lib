@@ -1,13 +1,6 @@
 import { create } from 'zustand';
 import { fetchNui, isEnvBrowser } from '@/lib/fetchNui';
 
-/**
- * The editor's Admins page. Mirrors core/server/admins.lua: a config list read
- * from server_config.lua that the UI may never write, and a database list it
- * manages. Every grant and revoke answers with both lists refreshed, so the
- * page renders what the server actually stored rather than a local guess.
- */
-
 export type AdminSource = 'config' | 'database';
 
 export type AdminEntry = {
@@ -48,7 +41,6 @@ export const useAdmins = create<AdminsState>(() => ({
     error: null,
 }));
 
-/** Browser dev harness — the NUI build never reaches these. */
 const mockAdmins: AdminEntry[] = [
     { identifier: 'license2:6e713bc45df69b1338e94c292948ef0053ffb638', name: 'Sag', source: 'config' },
     { identifier: 'license2:9f22c1aa77be40218c5d3e0b6a41d7cc90e3b155', name: 'Marlow', source: 'database', granted_by: 'Sag (license2:6e71…)', granted_at: '2026-08-14' },
@@ -90,7 +82,6 @@ export async function fetchAdmins() {
     applyResponse(await fetchNui<AdminsResponse>('admins_fetch'));
 }
 
-/** Grant by online server id, or by a pasted identifier. */
 export async function grantAdmin(target: { player?: number; identifier?: string }) {
     useAdmins.setState({ busy: true, error: null });
 

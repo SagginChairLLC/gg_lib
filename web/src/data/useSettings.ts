@@ -1,25 +1,9 @@
 import { create } from 'zustand';
 
-/**
- * State for the shared GG settings editor (/jobsettings). The payload mirrors
- * settings.describe() in base/settings/shared/registry.lua: every started GG
- * script carrying the module reports its schema, and this store holds all of
- * them plus the admin's staged-but-unsaved edits.
- */
-
 export type SettingType = 'boolean' | 'number' | 'integer' | 'percent' | 'string' | 'enum' | 'color' | 'blipcolor' | 'blipsprite' | 'ped' | 'vehicle' | 'coords' | 'time' | 'keybind' | 'object' | 'list';
 
-/** Enums arrive either as bare strings or as { value, label } pairs. */
 export type SettingOption = string | { value: string; label: string };
 
-/**
- * One key inside an object/list setting — a slimmed-down SettingEntry.
- *
- * Fields carry the container properties too, because ObjectControl renders each
- * field through the same SettingControl the top level uses. That means a field
- * can itself be an object, a list or a set of coordinates, which is what lets a
- * vehicle row hold its own mods, or a location hold its own pickup points.
- */
 export type SettingField = {
     key: string;
     label?: string;
@@ -30,7 +14,6 @@ export type SettingField = {
     step?: number;
     suffix?: string;
     options?: SettingOption[];
-    /** Absent-is-meaningful: an unset field is stored as missing, not defaulted. */
     nullable?: boolean;
     help?: string;
     fields?: SettingField[];
@@ -49,7 +32,6 @@ export type SettingEntry = {
     group: string;
     options?: SettingOption[];
     fields?: SettingField[];
-    /** List rows validate against these fields; absent means a list of scalars. */
     item?: SettingField[];
     item_type?: string;
     item_default?: Record<string, unknown>;
@@ -61,23 +43,17 @@ export type SettingEntry = {
     step?: number;
     suffix?: string;
     docs?: string;
-    /** coords only: sibling setting paths whose values drive the world preview. */
     preview_from?: Record<string, string>;
-    /** false = read once at boot; the editor badges it as needing a restart. */
     live?: boolean;
     advanced?: boolean;
     default: unknown;
     value: unknown;
 };
 
-/**
- * activeResource sentinel for the Admins page. Not a real resource, so it never
- * matches a script and the rail renders the admin pane instead of sections.
- */
 export const ADMINS_PAGE = '__gg_admins__';
 export const LOGS_PAGE = '__gg_logs__';
+export const BRIDGE_PAGE = '__gg_bridge__';
 
-/** gg_lib's studio-wide pseudo-resource, and the accent the editor paints in. */
 export const GENERIC_RESOURCE = 'gg_studio';
 export const THEME_PATH = 'theme.primary_color';
 
@@ -93,36 +69,24 @@ export type SettingsScript = {
     label: string;
     icon?: string;
     order?: number;
-    /** Bumped by the store on every saved change — the config's version number. */
     revision?: number;
-    /** fxmanifest version of the script build these settings belong to. */
     version?: string;
-    /** Studio-wide settings (currency, theming) rather than one script's — listed
-     *  in the rail's Generic section instead of under Scripts. */
     generic?: boolean;
     groups: SettingGroup[];
     entries: SettingEntry[];
 };
 
-/**
- * A staged edit. 'set' overrides the stored value; 'reset' deletes the stored
- * override so the Lua default comes back. Both only hit the server on Save.
- */
 export type DraftValue = { kind: 'set'; value: unknown } | { kind: 'reset' };
 
 type SettingsState = {
     scripts: SettingsScript[];
     canEdit: boolean;
-    /** null renders the script picker; a resource name renders that script's editor. */
     activeResource: string | null;
     search: string;
     showAdvanced: boolean;
-    /** resource -> path -> staged edit. Cleared per resource on save/discard. */
     draft: Record<string, Record<string, DraftValue>>;
-    /** path -> validation message from the last failed save of the active script. */
     errors: Record<string, string>;
     saving: boolean;
-    /** Path to scroll into view once the editor mounts (deep link from search). */
     focusPath: string | null;
 };
 
@@ -131,8 +95,6 @@ export const useSettings = create<SettingsState>(() => ({
     canEdit: false,
     activeResource: null,
     search: '',
-    // A live settings editor should surface every option — advanced entries are
-    // visible by default and the toggle filters them away instead.
     showAdvanced: true,
     draft: {},
     errors: {},
@@ -140,10 +102,6 @@ export const useSettings = create<SettingsState>(() => ({
     focusPath: null,
 }));
 
-/**
- * Key-order-independent stringify, so a Lua table that serialised its keys in a
- * different order still compares equal to the same object built in JS.
- */
 export function stableStringify(value: unknown): string {
     if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
 
@@ -162,7 +120,6 @@ export function settingsEqual(a: unknown, b: unknown): boolean {
     return stableStringify(a) === stableStringify(b);
 }
 
-/** The value the control should render: the staged edit if any, else the live value. */
 export function effectiveValue(resource: string, entry: SettingEntry): unknown {
     const staged = useSettings.getState().draft[resource]?.[entry.path];
 
@@ -171,7 +128,6 @@ export function effectiveValue(resource: string, entry: SettingEntry): unknown {
     return staged.kind === 'reset' ? entry.default : staged.value;
 }
 
-/** Modified = the value an admin would see differs from the shipped Lua default. */
 export function isModified(resource: string, entry: SettingEntry): boolean {
     return !settingsEqual(effectiveValue(resource, entry), entry.default);
 }
@@ -180,7 +136,6 @@ export function isStaged(resource: string, path: string): boolean {
     return useSettings.getState().draft[resource]?.[path] !== undefined;
 }
 
-/** Which script the admin had open last time — /jobsettings reopens it. */
 const LAST_SCRIPT_KEY = 'gg_settings_last_script';
 
 function readLastScript(): string | null {
@@ -195,7 +150,6 @@ function writeLastScript(resource: string) {
     try {
         window.localStorage.setItem(LAST_SCRIPT_KEY, resource);
     } catch {
-        // Storage blocked; the editor just opens on the first script next time.
     }
 }
 
@@ -207,8 +161,6 @@ export function openSettings(scripts: SettingsScript[], canEdit: boolean, focus?
         return a.label.localeCompare(b.label);
     });
 
-    // An explicit focus (the per-script alias command, /taxisettings) wins;
-    // otherwise land on whichever script the admin was in last, then first.
     const focusTarget = focus && sorted.some((script) => script.resource === focus) ? focus : null;
     const remembered = readLastScript();
     const rememberedTarget = remembered && sorted.some((script) => script.resource === remembered) ? remembered : null;
@@ -230,10 +182,6 @@ export function setActiveScript(resource: string | null, focusPath: string | nul
     useSettings.setState({ activeResource: resource, search: '', errors: {}, focusPath });
 }
 
-/**
- * Stage one edit. Writing the current live value back removes the stage, so
- * toggling something away and back leaves nothing to save.
- */
 export function stageValue(resource: string, path: string, value: unknown) {
     useSettings.setState((state) => {
         const script = state.scripts.find((entry) => entry.resource === resource);
@@ -253,14 +201,12 @@ export function stageValue(resource: string, path: string, value: unknown) {
     });
 }
 
-/** Stage a return to the Lua default (a DELETE of the stored override on save). */
 export function stageReset(resource: string, path: string) {
     useSettings.setState((state) => {
         const script = state.scripts.find((entry) => entry.resource === resource);
         const entry = script?.entries.find((candidate) => candidate.path === path);
         const forResource = { ...(state.draft[resource] ?? {}) };
 
-        // Already running on the default: nothing stored, nothing to reset.
         if (entry && settingsEqual(entry.value, entry.default)) {
             delete forResource[path];
         } else {
@@ -296,7 +242,6 @@ export function draftCount(resource: string): number {
     return Object.keys(useSettings.getState().draft[resource] ?? {}).length;
 }
 
-/** Refresh payload landed: swap in fresh schemas, drop drafts that saved clean. */
 export function applyScripts(scripts: SettingsScript[], canEdit?: boolean) {
     useSettings.setState((state) => {
         const sorted = [...scripts].sort((a, b) => {
@@ -314,11 +259,6 @@ export function applyScripts(scripts: SettingsScript[], canEdit?: boolean) {
     });
 }
 
-/**
- * Browser-dev stand-in for the save round-trip: fold the staged draft into the
- * live values the way the server broadcast would, then drop the draft. The NUI
- * build never calls this — in game the refreshed schema comes from Lua.
- */
 export function applyDraftLocally(resource: string) {
     useSettings.setState((state) => {
         const staged = state.draft[resource] ?? {};
@@ -328,7 +268,6 @@ export function applyDraftLocally(resource: string) {
 
             return {
                 ...script,
-                // Mirror the server store: any accepted change bumps the config revision.
                 revision: (script.revision ?? 0) + 1,
                 entries: script.entries.map((entry) => {
                     const edit = staged[entry.path];

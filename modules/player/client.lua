@@ -1,6 +1,5 @@
 gg.player = gg.player or {}
 
--- @param coord | vector4 coordinate
 gg.player.teleport = function(coord)
     local ped = PlayerPedId()
     DoScreenFadeOut(500)
@@ -15,7 +14,6 @@ gg.player.teleport = function(coord)
     end
     DoScreenFadeIn(500)
 end
-
 
 local TabletProp
 gg.player.ToggleTablet = function(toggle)
@@ -37,7 +35,6 @@ gg.player.ToggleTablet = function(toggle)
 
     return true
 end
-
 
 -- MARK: CLOTHING
 local CLOTHING = {

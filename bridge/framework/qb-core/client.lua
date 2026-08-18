@@ -7,12 +7,10 @@ RegisterNetEvent('QBCore:Client:UpdateObject', function()
 	QBCore = exports['qb-core']:GetCoreObject()
 end)
 
-
 gg.framework.getItemTable = function(item)
     if not item then return QBCore.Shared.Items end
     return QBCore.Shared.Items[item]
 end
-
 
 gg.framework.GetPlayerGroups = function()
     local Player = QBCore.Functions.GetPlayerData()
@@ -38,7 +36,6 @@ gg.framework.GetPlayerGroupInfo = function(job)
     return info
 end
 
--- @param modelHash number | The vehicles modelHash
 gg.framework.ValidateVehicleHash = function(modelHash)
     if not modelHash then return modelHash or 0 end
     local vehicle_data = QBCore.Shared.Vehicles

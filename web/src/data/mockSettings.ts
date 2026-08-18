@@ -1,17 +1,9 @@
 import type { SettingEntry, SettingField, SettingsScript } from './useSettings';
 
-/**
- * Browser-dev payload for the /jobsettings editor. The gg_taxijob schema is a
- * faithful mirror of config/shared/settings.lua — same groups, same paths, same
- * defaults — so panel work in the browser previews exactly what ships. The two
- * other scripts are stand-ins that exist purely so the picker renders a fleet.
- */
-
 function deepCopy<T>(value: T): T {
     return value === undefined ? value : JSON.parse(JSON.stringify(value));
 }
 
-/** Fills the invariants so mock declarations stay as terse as the Lua ones. */
 function entry(partial: Omit<SettingEntry, 'value' | 'live'> & { value?: unknown; live?: boolean }): SettingEntry {
     return {
         live: true,
@@ -23,7 +15,6 @@ function entry(partial: Omit<SettingEntry, 'value' | 'live'> & { value?: unknown
 //--------------------------------------------------
 // MARK: Taxi — Uniform slots
 //--------------------------------------------------
-// Mirrors the slotFields builder in config/shared/settings.lua.
 
 const COMPONENT_SLOTS = [
     ['face', 'Face'],
@@ -123,7 +114,6 @@ function buildTaxiScript(): SettingsScript {
                 default: 46,
                 docs: 'https://docs.fivem.net/docs/game-references/blips/#blip-colors',
                 live: false,
-                // Overridden in the mock DB, so the Modified path renders.
                 value: 5,
             }),
             entry({
@@ -457,10 +447,6 @@ function buildCarwashScript(): SettingsScript {
     };
 }
 
-/**
- * Mirror of base/settings/server/generic.lua — the studio-wide settings every
- * script shares, stored under the pseudo-resource 'gg_studio' in the same DB.
- */
 function buildGenericScript(): SettingsScript {
     return {
         resource: 'gg_studio',

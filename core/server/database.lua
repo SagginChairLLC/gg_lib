@@ -1,18 +1,12 @@
 --------------------------------------------------
 -- MARK: Database
 --------------------------------------------------
--- Every gg_lib table is created here, once, at boot. gg_lib starts before any
--- consumer, so the tables exist by the time a script's own store loads.
--- Fires `gg_lib:database:ready` when the schema is in place.
 
 Database = {}
 
 local ready = false
 
 local TABLES = {
-    -- Setting overrides for every script, plus the studio-wide values under
-    -- the pseudo-resource 'gg_studio'. Defaults stay in Lua; only changed
-    -- keys get a row.
     [=[
     CREATE TABLE IF NOT EXISTS `gg_studio_settings` (
         `resource` VARCHAR(64) NOT NULL COLLATE 'utf8mb4_general_ci',
@@ -27,8 +21,6 @@ local TABLES = {
     ROW_FORMAT=DYNAMIC;
     ]=],
 
-    -- Per-resource config revision, bumped on every save so a stale editor
-    -- page cannot clobber another admin's write.
     [=[
     CREATE TABLE IF NOT EXISTS `gg_studio_settings_meta` (
         `resource` VARCHAR(64) NOT NULL COLLATE 'utf8mb4_general_ci',
@@ -41,9 +33,6 @@ local TABLES = {
     ROW_FORMAT=DYNAMIC;
     ]=],
 
-    -- Who changed what, and when. Append only: settings rows are overwritten
-    -- in place, so without this there is no way to answer "who turned that
-    -- off". Indexed by time because that is the only way it is ever read.
     [=[
     CREATE TABLE IF NOT EXISTS `gg_studio_log` (
         `id` BIGINT NOT NULL AUTO_INCREMENT,
@@ -63,8 +52,6 @@ local TABLES = {
     ROW_FORMAT=DYNAMIC;
     ]=],
 
-    -- Admins granted in game. server_config.lua is the separate bootstrap
-    -- list and is never written here.
     [=[
     CREATE TABLE IF NOT EXISTS `gg_studio_admins` (
         `identifier` VARCHAR(96) NOT NULL COLLATE 'utf8mb4_general_ci',
@@ -79,8 +66,6 @@ local TABLES = {
     ]=],
 }
 
--- MariaDB understands IF NOT EXISTS here; MySQL errors on the syntax and then
--- errors again on the plain form once it has run. Both are harmless.
 local function addColumn(table_, column, definition)
     local ok = pcall(MySQL.query.await,
         ("ALTER TABLE `%s` ADD COLUMN IF NOT EXISTS `%s` %s"):format(table_, column, definition))
@@ -100,7 +85,6 @@ CreateThread(function()
         MySQL.query.await(TABLES[index])
     end
 
-    -- Installs created before the column existed.
     addColumn("gg_studio_settings_meta", "version", "VARCHAR(32) NULL DEFAULT NULL")
 
     ready = true

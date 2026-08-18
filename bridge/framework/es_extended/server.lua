@@ -4,9 +4,6 @@ local ESX = exports.es_extended:getSharedObject()
 local ox_inventory = GetResourceState('ox_inventory') == 'started' and true or false
 local utility = require("utility")
 
---- Get the player's identifier.
--- @param source number: The player's server ID.
--- @return string: The player's identifier.
 gg.framework.GetIdentifier = function(source)
     if not source then return nil end
     local player = ESX.GetPlayerFromId(source)
@@ -14,17 +11,12 @@ gg.framework.GetIdentifier = function(source)
     return tostring(player.getIdentifier())
 end
 
---- Get the player's name.
--- @param source number: The player's server ID.
--- @return string: The player's name.
 gg.framework.GetName = function(source)
     local player = ESX.GetPlayerFromId(source)
     if not player then return "" end
     return player.getName()
 end
 
--- @param identifier string | The player's unique identifier.
--- @return string The player's full name.
 gg.framework.GetNameByIdentifier = function(identifier)
     if identifier then
         local result = MySQL.query.await('SELECT firstname, lastname FROM users WHERE identifier = ?', { identifier })
@@ -42,26 +34,16 @@ gg.framework.GetItemData = function(item)
     return "Item Data" -- ESX inventories handle this
 end
 
---- Get the count of players with a specific job.
--- @param source number: The player's server ID.
--- @param job string: The job name to search for.
--- @return table: A list of players with the given job.
 gg.framework.GetJobCount = function(source, job)
     return ESX.GetExtendedPlayers('job', job)
 end
 
---- Get the player's group/job information.
--- @param source number: The player's server ID.
--- @return string, boolean: The player's job name and gang status (always false).
 gg.framework.GetPlayerGroups = function(source)
     local player = ESX.GetPlayerFromId(source)
     local job = player.getJob()
     return job.name, false
 end
 
---- Get detailed job information for a player.
--- @param source number: The player's server ID.
--- @return table: A table containing job details (name, label, grade, and gradeName).
 gg.framework.GetPlayerJobInfo = function(source)
     local player = ESX.GetPlayerFromId(source)
     local job = player.getJob()
@@ -74,15 +56,10 @@ gg.framework.GetPlayerJobInfo = function(source)
     return jobInfo
 end
 
---- Get gang information for a player (always false).
--- @param source number: The player's server ID.
--- @return boolean: Always returns false.
 gg.framework.GetPlayerGangInfo = function(source)
     return false
 end
 
---- Get all players and their basic information.
--- @return table: A list of players with job, gang, and source information.
 gg.framework.GetPlayers = function()
     local players = ESX.GetExtendedPlayers()
     local formattedPlayers = {}
@@ -98,25 +75,16 @@ gg.framework.GetPlayers = function()
     return formattedPlayers
 end
 
---- Get the player's date of birth.
--- @param source number: The player's server ID.
--- @return string: The player's date of birth.
 gg.framework.GetDob = function(source)
     local player = ESX.GetPlayerFromId(source)
     return player.variables.dateofbirth
 end
 
---- Get the player's sex.
--- @param source number: The player's server ID.
--- @return string: The player's sex.
 gg.framework.GetSex = function(source)
     local player = ESX.GetPlayerFromId(source)
     return player.variables.sex
 end
 
---- Get a player's inventory.
--- @param source number: The player's server ID.
--- @return table: A list of inventory items with details (name, label, count, weight, metadata).
 gg.framework.GetInventory = function(source)
     local player = ESX.GetPlayerFromId(source)
     local items = {}
@@ -135,9 +103,6 @@ gg.framework.GetInventory = function(source)
 
     return items
 end
---- Register a usable item.
--- @param item string: The item's name.
--- @param cb function: The callback function triggered when the item is used.
 gg.framework.RegisterUsableItem = function(item, cb)
     ESX.RegisterUsableItem(item, cb)
 end
@@ -190,11 +155,6 @@ gg.framework.RemoveMoney = function(src, accountname, amount, reason)
     end
 end
 
---- Set a player's job.
--- @param source number: The player's server ID.
--- @param jobId string: The job name to set.
--- @param grade number: The grade/rank (default 0).
--- @return boolean: Whether the job was set successfully.
 gg.framework.SetJob = function(source, jobId, grade)
     local player = ESX.GetPlayerFromId(source)
     if not player then return false end
@@ -202,13 +162,9 @@ gg.framework.SetJob = function(source, jobId, grade)
     return true
 end
 
-
 local vehicle_storage = {}
 local last_ret = 0
 
---- GetVehicle
---- @param vehicle string The vehicle model name to lookup
---- @return string|nil Returns vehicle name if model is found, otherwise nil
 gg.framework.GetVehicle = function(vehicle)
     if not vehicle or type(vehicle) ~= "string" then
         return nil
@@ -216,7 +172,6 @@ gg.framework.GetVehicle = function(vehicle)
 
     if (last_ret + 600) < os.time() then
         vehicle_storage = {}
-
 
         local function safeQuery(sql, retries, delay)
             retries = retries or 5
@@ -253,8 +208,6 @@ gg.framework.GetVehicle = function(vehicle)
     return vehicle_storage[vehicle] or vehicle
 end
 
-
-
 local vehicle_list = {}
 local last_request = 0
 lib.callback.register(GetCurrentResourceName()..":server:retrieveVehicleList", function()
@@ -270,7 +223,6 @@ lib.callback.register(GetCurrentResourceName()..":server:retrieveVehicleList", f
 
     return vehicle_list or {}
 end)
-
 
 gg.framework.getItemLabel = function(item)
     if not item then return nil end
@@ -300,7 +252,6 @@ gg.framework.GetVehicleTable = function()
     return out
 end
 
-
 local cached_admins = {}
 gg.framework.HasPermission = function(source)
     if not source or source == 0 or type(source) ~= "number" then
@@ -329,7 +280,6 @@ gg.framework.HasPermission = function(source)
     cached_admins[source] = false
     return false
 end
-
 
 gg.framework.GetUniquePlate = function()
     local letters, numbers = {}, {}
@@ -363,7 +313,6 @@ gg.framework.GetUniquePlate = function()
         end
     end
 end
-
 
 gg.framework.InsertVehiclePlayerGarage = function(payload)
     local src = payload.source

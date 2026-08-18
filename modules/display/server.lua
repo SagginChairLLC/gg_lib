@@ -2,16 +2,6 @@ local utility = require("utility")
 
 gg.display = gg.display or {}
 
----@param webhook string Discord webhook URL
----@param payload table Table containing webhook data
---- payload = {
----     title = string,
----     description = string,
----     color = number,
----     footer = string,
----     username = string,
----     avatar_url = string
---- }
 gg.display.webhook = function(webhook, payload)
     if type(webhook) ~= "string" or webhook == "" then return end
     if type(payload) ~= "table" then return end
@@ -43,4 +33,3 @@ gg.display.webhook = function(webhook, payload)
         end
     end, 'POST', json.encode(body), { ["Content-Type"] = "application/json" })
 end
-

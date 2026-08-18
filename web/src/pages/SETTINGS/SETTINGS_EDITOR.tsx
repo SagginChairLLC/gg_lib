@@ -4,25 +4,10 @@ import { useSettings } from '@/data/useSettings';
 import { fetchNui } from '@/lib/fetchNui';
 import SETTINGS_SCRIPT from './SETTINGS_SCRIPT';
 
-/**
- * The /jobsettings surface: one window. Script selection is embedded in the
- * editor's left rail, so opening lands straight in a script — whichever one the
- * admin was in last (see openSettings) — with no separate picker step.
- */
-
 export default function SETTINGS_EDITOR() {
     const activeResource = useSettings((state) => state.activeResource);
     const scripts = useSettings((state) => state.scripts);
 
-    /**
-     * Moving the pointer off the window fades it back, so the world behind can
-     * be checked without closing the editor and losing staged edits. Whether it
-     * fades at all, and how far, are studio-wide settings — Generic Settings ->
-     * Appearance — rather than a number baked in here.
-     *
-     * Starts hovered: the editor opens wherever the cursor happens to be, and
-     * opening already faded would look broken.
-     */
     const [hovered, setHovered] = useState(true);
     const fade = useLang((state) => state.fade);
     const fadeOpacity = useLang((state) => state.fadeOpacity);
@@ -52,17 +37,6 @@ export default function SETTINGS_EDITOR() {
 
     return (
         <div className="flex h-full w-full items-center justify-center">
-            {/* Wider than 16:9 on purpose. The rail costs a fixed 27vh whatever
-                the window, and the value column another 28vh, so at a video
-                aspect the space left for a setting's own label and help was the
-                narrowest part of the layout -- and picker panels had nowhere to
-                open into.
-
-                Every dimension in this UI is in vh, width included. Viewport
-                width is never used: height is the one axis that stays constant
-                across the monitors this runs on, so sizing off it makes the
-                whole panel render identically everywhere, while a vw anywhere
-                would make it drift with the aspect ratio. */}
             <div
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}

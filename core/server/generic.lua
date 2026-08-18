@@ -1,19 +1,13 @@
 --------------------------------------------------
 -- MARK: Generic Settings
 --------------------------------------------------
--- Studio-wide settings (currency, theming) shared by every GG script. They
--- live in gg_studio_settings alongside per-script overrides, under the
--- pseudo-resource 'gg_studio'. Nothing is cached: reads hit the database so
--- edits are always served fresh.
 
--- The settings registry (validators, deepCopy) -- shared with consumers.
 require("modules.settings.shared")
 
 GenericSettings = {}
 GenericSettings.resource = "gg_studio"
 
 local PSEUDO = GenericSettings.resource
-
 --------------------------------------------------
 -- MARK: Schema
 --------------------------------------------------
@@ -21,14 +15,12 @@ local PSEUDO = GenericSettings.resource
 local groups = {
     { id = "appearance", label = "Appearance", icon = "fa-palette" },
     { id = "general",    label = "General",    icon = "fa-sliders" },
+    { id = "interface",  label = "Interface",  icon = "fa-bell",      help = "Who draws notifications, progress bars and prompts for every GG script" },
     { id = "popup",      label = "Popups",     icon = "fa-comment",   help = "gg.popup, shared by every script that shows one" },
     { id = "reset",      label = "Daily Reset", icon = "fa-clock",    help = "When daily progress rolls over, for every script that has any" },
     { id = "fallback",   label = "Fallbacks",  icon = "fa-life-ring", help = "Used when a script's own model fails to load" },
 }
 
--- The zone list comes from settings.timezones, which lives in the shared
--- registry so a consumer resolving the reset time uses the same table this
--- offered the choice from.
 local timezone_options = {}
 for zone in pairs(settings.timezones) do timezone_options[#timezone_options + 1] = zone end
 table.sort(timezone_options)
@@ -80,10 +72,6 @@ define("theme.fade_opacity", {
     default = 90,
 })
 
--- The whole of ISO 4217 rather than a guess at the popular few: a server's
--- economy is whatever its players actually use, and being told "your currency
--- is not an option" is the kind of thing that makes an owner edit the database
--- by hand. The picker searches on both the name and the code.
 local CURRENCIES = [[
 AED=UAE Dirham
 AFN=Afghan Afghani
@@ -273,9 +261,58 @@ define("general.number_format", {
     },
 })
 
--- gg.popup is gg_lib's own UI, so its master switch and anchor belong here
--- rather than being answered differently by each script that calls it. What a
--- script draws in its own popup stays with that script.
+--------------------------------------------------
+-- MARK: Interface
+--------------------------------------------------
+
+local NOTIFY_OPTIONS = {
+    { value = "ox",         label = "ox_lib" },
+    { value = "qb",         label = "qb-core" },
+    { value = "esx",        label = "es_extended" },
+    { value = "mythic",     label = "mythic_notify" },
+    { value = "old_mythic", label = "mythic_notify (legacy)" },
+    { value = "pNotify",    label = "pNotify" },
+    { value = "brutal",     label = "brutal_notify" },
+    { value = "okok",       label = "okokNotify" },
+    { value = "stNotify",   label = "stNotify" },
+    { value = "sd",         label = "sd-notify" },
+    { value = "wasabi",     label = "wasabi_notify" },
+    { value = "custom",     label = "Custom (wired in gg.display)" },
+}
+
+local BAR_OPTIONS = {
+    { value = "ox",  label = "ox_lib" },
+    { value = "qb",  label = "qb-core" },
+    { value = "esx", label = "es_extended" },
+}
+
+define("interface.notifications", {
+    group   = "interface",
+    label   = "Notifications",
+    help    = "Who draws gg.display.notify. Every GG script uses this one.",
+    type    = "enum",
+    options = NOTIFY_OPTIONS,
+    default = "ox",
+})
+
+define("interface.progressbar", {
+    group   = "interface",
+    label   = "Progress Bars",
+    help    = "Who draws gg.display.ProgressBar.",
+    type    = "enum",
+    options = BAR_OPTIONS,
+    default = "ox",
+})
+
+define("interface.textui", {
+    group   = "interface",
+    label   = "Text UI",
+    help    = "Who draws gg.display.DoTextui, the prompt shown near an interaction.",
+    type    = "enum",
+    options = BAR_OPTIONS,
+    default = "ox",
+})
+
 define("popup.enabled", {
     group   = "popup",
     label   = "Enable Popups",
@@ -296,8 +333,6 @@ define("popup.position", {
     },
 })
 
--- One schedule for the whole studio: every script that resets daily progress
--- rolls over at the same moment, rather than each keeping its own clock.
 define("reset.daily_time", {
     group   = "reset",
     label   = "Daily Reset Time",
@@ -334,9 +369,6 @@ define("fallback.ped", {
 --------------------------------------------------
 -- MARK: Storage
 --------------------------------------------------
--- Same encode shape as the per-script store, same table. The revision bump is a
--- relative UPDATE rather than a cached counter, because gg_lib restarts must
--- not reset it and rows survive across schema versions.
 
 local function encode(value)
     return json.encode({ v = value })
@@ -389,7 +421,6 @@ end
 -- MARK: Reads
 --------------------------------------------------
 
--- Current value of one generic setting, override or default.
 function GenericSettings.get(path)
     local def = schema[path]
     if not def then return nil end
@@ -416,9 +447,6 @@ function GenericSettings.describe()
         local value = overrides[path]
 
         if value ~= nil then
-            -- Explicit branch, not `ok and result or nil`: a validated `false`
-            -- would collapse to nil there and the default would win, making
-            -- every boolean override impossible to turn off.
             local ok, result = settings.validate(def, value)
             if ok then value = result else value = nil end
         end
@@ -461,10 +489,6 @@ end
 --------------------------------------------------
 -- MARK: Replication
 --------------------------------------------------
--- Server VMs hydrate (and subscribe) through the ggGenericFetch export; client
--- VMs hydrate through the snapshot callback and stay live off the broadcast.
--- The subscriber cache is memory-only by design: consumers re-fetch whenever
--- gg_lib starts, which rebuilds it after a restart.
 
 local subscribers = {}
 
@@ -477,7 +501,6 @@ local function resolvedValues(paths)
         local value = overrides[path]
 
         if value ~= nil then
-            -- Same trap as describe(): `ok and result or nil` loses a false.
             local ok, result = settings.validate(def, value)
             if ok then value = result else value = nil end
         end
@@ -492,8 +515,6 @@ local function resolvedValues(paths)
     return values
 end
 
--- Full payload when paths is nil, otherwise just those paths -- the same shape
--- settings.generic.apply consumes on the other side.
 function GenericSettings.snapshot(paths)
     return {
         revision = loadRevision(),
@@ -508,8 +529,6 @@ local function pushGeneric(changed)
 
     for resource in pairs(subscribers) do
         if GetResourceState(resource) == "started" then
-            -- pcall shields a subscriber whose handler throws; it stays
-            -- subscribed and simply misses this push.
             pcall(function()
                 exports[resource]:ggGenericSync(payload)
             end)
@@ -519,7 +538,6 @@ local function pushGeneric(changed)
     TriggerClientEvent("gg_lib:generic:sync", -1, payload)
 end
 
--- Server-side hydration. Calling this is what subscribes a resource to pushes.
 exports("ggGenericFetch", function()
     local invoker = GetInvokingResource()
 
@@ -530,7 +548,6 @@ exports("ggGenericFetch", function()
     return GenericSettings.snapshot()
 end)
 
--- Client-side hydration for every GG script's client VM.
 lib.callback.register("gg_lib:generic:snapshot", function()
     return true, GenericSettings.snapshot()
 end)
@@ -542,14 +559,10 @@ end)
 --------------------------------------------------
 -- MARK: Writes
 --------------------------------------------------
--- Same contract as the per-script store: validate everything first, write
--- nothing on any failure. Returns (ok, changed_paths | error_map).
 
 function GenericSettings.apply(changes, actor, expectedRevision)
     if type(changes) ~= "table" then return false, { _ = "malformed payload" } end
 
-    -- Same optimistic guard as the per-script store: a stale revision means
-    -- another admin saved since this batch was staged -- reject, don't clobber.
     if expectedRevision ~= nil and tonumber(expectedRevision) ~= loadRevision() then
         return false, { _ = "settings changed since this page was opened -- refresh and try again" }
     end
@@ -576,8 +589,6 @@ function GenericSettings.apply(changes, actor, expectedRevision)
 
     if next(errors) then return false, errors end
 
-    -- Read before writing: after the transaction these rows hold the new
-    -- values, and the log's "old" column would just repeat the new one.
     local previous = loadOverrides()
 
     local queries = {}
@@ -680,10 +691,6 @@ end
 --------------------------------------------------
 -- MARK: Schema Drift
 --------------------------------------------------
--- Same policy as the per-script store: added settings need nothing (no row =
--- default), a define carrying `renamed_from` migrates its row, and rows whose
--- setting no longer exists are kept but quarantined -- reads already ignore
--- them (every read resolves through `schema`), so they only wait for prune.
 
 local orphanedGeneric = {}
 

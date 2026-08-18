@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import { parseColor } from '@/lib/color-utils';
 
-/**
- * Editor visibility, translations and theming for gg_lib's settings UI. The
- * defaults ship in the bundle; a UI_LANG map on the open payload can override
- * any of them if gg_lib grows a localisation system later.
- */
-
 export const defaultLang: Record<string, string> = {
     util_close_btn: 'Close',
     util_esc_btn: 'ESC',
@@ -67,6 +61,8 @@ export const defaultLang: Record<string, string> = {
     picker_hint_id: 'Or type an id',
     settings_ped_use: 'Use',
     settings_place_in_world: 'Place in World',
+    settings_place_new: 'Place New Position',
+    settings_edit_position: 'Edit Position',
     settings_placing: 'Placing…',
     settings_factory_reset: 'Factory Reset',
     settings_factory_reset_help: 'Restores every setting on this page to the value the script ships with, and deletes the stored overrides.',
@@ -80,6 +76,25 @@ export const defaultLang: Record<string, string> = {
     logs_by: 'by',
     logs_unset: 'unset',
     logs_empty: 'Nothing has been changed yet',
+    bridge_title: 'Bridges',
+    bridge_help: 'What each script detected, and whether it took',
+    bridge_empty: 'No script has reported a bridge yet',
+    bridge_ok: 'Bridged',
+    bridge_failed: 'Failed to bridge',
+    bridge_none: 'None detected',
+    bridge_from_override: 'Forced in utility.lua',
+    bridge_from_detected: 'Auto detected',
+    bridge_from_default: 'No resource found, using the stub',
+    bridge_problem_one: 'problem',
+    bridge_problem_many: 'problems',
+    bridge_dependencies: 'Dependencies',
+    bridge_dependencies_help: 'gg_lib will not run without these',
+    bridge_required: 'Required',
+    bridge_running: 'Running',
+    bridge_not_running: 'Not started',
+    bridge_interface: 'Interface',
+    bridge_interface_help: 'Who draws notifications, progress bars and menus',
+    bridge_provider_default: 'Default (ox_lib)',
     admins_title: 'Admins',
     admins_search: 'Search admins and players…',
     admins_current: 'Has Access',
@@ -99,9 +114,7 @@ export const defaultLang: Record<string, string> = {
 
 type LangState = {
     visible: boolean;
-    /** Hidden rather than closed while the player places a position in world. */
     placing: boolean;
-    /** Studio-wide: fade a panel back when the pointer leaves it, and how far. */
     fade: boolean;
     fadeOpacity: number;
     lang: Record<string, string>;
@@ -115,11 +128,6 @@ export const useLang = create<LangState>(() => ({
     lang: defaultLang,
 }));
 
-/**
- * Appearance from Generic Settings. Every field is optional because this
- * arrives from three places — open, refresh and a live generic push — and a
- * push only carries the paths that actually changed.
- */
 export function applyAppearance(data: { UI_THEME?: string; UI_FADE?: boolean; UI_FADE_TO?: number }) {
     applyTheme(data.UI_THEME);
 
@@ -133,7 +141,6 @@ export function t(key: string): string {
     return useLang.getState().lang[key] ?? defaultLang[key] ?? key;
 }
 
-/** Accent color for the whole editor — accepts hex or rgb() strings. */
 export function applyTheme(color?: string) {
     if (!color) return;
 

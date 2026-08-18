@@ -4,19 +4,6 @@ import { t } from '@/data/useLang';
 import { fetchNui, isEnvBrowser } from '@/lib/fetchNui';
 import { discardDraft, settingsEqual, useSettings, type SettingsScript } from '@/data/useSettings';
 
-/**
- * Factory reset for one script, parked at the very bottom of its settings so
- * it is found deliberately rather than brushed against.
- *
- * It deletes this script's stored overrides, which is what makes the Lua
- * defaults take over again — the defaults are never copied anywhere, so
- * "factory" here means the values the script shipped with, whatever version is
- * running now.
- *
- * Confirmation is a typed word, not a second button. A dialog with a red button
- * is still one click away from wiping an afternoon of tuning.
- */
-
 const CONFIRM_WORD = 'RESET';
 
 type ResetResponse = { ok: boolean; errors?: Record<string, string> };
@@ -27,16 +14,12 @@ export default function SETTINGS_RESET({ script, disabled, onDone }: { script: S
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Switching scripts must not leave a primed confirmation pointed at the
-    // one that is now on screen.
     useEffect(() => {
         setArming(false);
         setTyped('');
         setError(null);
     }, [script.resource]);
 
-    // Stored value against shipped default — staged edits are irrelevant here,
-    // this is about what is in the database.
     const changed = script.entries.filter((entry) => !settingsEqual(entry.value, entry.default));
     const nothingToDo = changed.length === 0;
     const confirmed = typed.trim().toUpperCase() === CONFIRM_WORD;
@@ -76,7 +59,6 @@ export default function SETTINGS_RESET({ script, disabled, onDone }: { script: S
                 await onDone();
             }
 
-            // Staged edits were written against values that no longer exist.
             discardDraft(script.resource);
 
             setArming(false);

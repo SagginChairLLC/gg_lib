@@ -4,11 +4,6 @@ import { useLang } from '@/data/useLang';
 import { usePopup } from '@/data/usePopup';
 import { applyDevSurface, writeDevSurface, type DevSurfaceId } from '@/lib/devSurface';
 
-/**
- * Dev-server-only panel switcher. Deliberately styled nothing like the game UI
- * so it can never be mistaken for product chrome in a screenshot.
- */
-
 type DevRow = { id: DevSurfaceId; label: string };
 
 const SETTINGS_ROWS: DevRow[] = [{ id: 'editor', label: 'Script Editor' }];
@@ -26,13 +21,10 @@ export default function DevSurfaceSwitcher() {
 
     const activeLabel = [...SETTINGS_ROWS, ...POPUP_ROWS].find((row) => row.id === activeId)?.label ?? 'Hidden';
 
-    // Persist whatever is actually live — including closes made from the real
-    // UI (Escape) — so a refresh drops us back on the exact panel we were on.
     useEffect(() => {
         writeDevSurface(activeId);
     }, [activeId]);
 
-    // Clicking the live row again hides it, so every panel toggles on and off.
     const select = (id: DevSurfaceId) => applyDevSurface(activeId === id ? 'none' : id);
 
     const renderGroup = (title: string, rows: DevRow[]) => (

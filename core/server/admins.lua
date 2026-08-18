@@ -1,12 +1,6 @@
 --------------------------------------------------
 -- MARK: Admin Registry
 --------------------------------------------------
--- Admins come from server_config.lua and from gg_studio_admins. Both lists are
--- checked independently so a database outage cannot lock the owner out, and
--- the config list is never written to -- it is the route that cannot be
--- revoked from in game.
---
--- Managed entirely through the /ggsettings editor; there are no admin commands.
 
 Admins = {}
 
@@ -31,8 +25,6 @@ local fromDatabase = {}
 -- MARK: Normalisation
 --------------------------------------------------
 
--- Fold to lowercase "type:value" so a pasted identifier matches whatever case
--- the platform returns. A bare value is read as a license2.
 local function normalize(entry)
     if type(entry) ~= "string" then return nil, "is not a string" end
 
@@ -56,8 +48,6 @@ end
 -- MARK: Config Load
 --------------------------------------------------
 
--- Read off disk rather than through files{}, so the config never ships to a
--- client. Any failure keeps the list already in memory.
 local function loadConfig()
     local source = LoadResourceFile("gg_lib", CONFIG_FILE)
 
@@ -104,7 +94,6 @@ end
 -- MARK: Lookups
 --------------------------------------------------
 
--- nil is not the console: a caller that lost its source fails closed.
 function Admins.isConsole(source)
     return source == 0 or source == "0"
 end
@@ -113,8 +102,6 @@ function Admins.license2(source)
     return GetPlayerIdentifierByType(source, "license2")
 end
 
--- Name + license2, for logs. license2 leads so a denial line can be pasted
--- straight into the admin list.
 function Admins.actor(source)
     if Admins.isConsole(source) then return "console" end
 
@@ -125,8 +112,6 @@ function Admins.actor(source)
     return ("%s (%s)"):format(GetPlayerName(source) or "unknown", identifier or source)
 end
 
--- Server-side identifiers cannot be forged, so the whole set is fair game --
--- that is what lets a steam:/discord: entry work.
 function Admins.isAdmin(source)
     if Admins.isConsole(source) then return true end
 
@@ -149,8 +134,6 @@ end
 --------------------------------------------------
 -- MARK: Permissions
 --------------------------------------------------
--- The single gate for the editor and for admin management. Checked on the
--- server for every call; the UI hiding a control is cosmetic.
 
 function Admins.canEdit(source)
     if Admins.isConsole(source) then return true end
@@ -218,8 +201,6 @@ end
 -- MARK: Editor Payload
 --------------------------------------------------
 
--- Names of everyone online, so a config entry (which stores no name) still
--- shows as a person while its owner is connected.
 local function onlineNames()
     local names = {}
 
@@ -231,8 +212,6 @@ local function onlineNames()
     return names
 end
 
--- Config entries first, then database rows, each tagged with where it came
--- from so the editor knows which ones it may revoke.
 local function listAdmins()
     local list = {}
     local seen = {}
@@ -257,8 +236,6 @@ local function listAdmins()
     for _, row in ipairs(rows or {}) do
         local identifier = normalize(row.identifier)
 
-        -- An identifier promoted into server_config.lua after being granted in
-        -- game is listed once, as config, since that is what makes it stick.
         if identifier and not seen[identifier] then
             list[#list + 1] = {
                 identifier = identifier,
@@ -279,7 +256,6 @@ local function listAdmins()
     return list
 end
 
--- Everyone online, so an admin can grant without copying identifiers around.
 local function listPlayers()
     local list = {}
 
@@ -304,8 +280,6 @@ end
 --------------------------------------------------
 -- MARK: Editor Callbacks
 --------------------------------------------------
--- Every call re-checks on the server. A hand-crafted event from a player
--- without rights dies here regardless of what the client claims.
 
 lib.callback.register("gg_lib:admins:fetch", function(source)
     if not Admins.canEdit(source) then
@@ -326,7 +300,6 @@ lib.callback.register("gg_lib:admins:grant", function(source, data)
 
     local identifier, name
 
-    -- A server id from the player picker, or a pasted identifier.
     if data.player then
         local player = tonumber(data.player)
         if not player or not GetPlayerName(player) then return false, "that player is no longer connected" end
@@ -376,7 +349,6 @@ lib.callback.register("gg_lib:admins:revoke", function(source, data)
 
     if not fromDatabase[identifier] then return false, "not an admin" end
 
-    -- Read before revoking; the revoke clears this entry.
     local wasNamed = fromDatabase[identifier]
 
     if not Admins.revoke(identifier) then return false, "database write failed" end

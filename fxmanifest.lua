@@ -7,9 +7,6 @@ author 'GG Studio'
 version '0.1.0'
 description 'GG Studio | Import-based library: bridge, gg.* modules, /jobsettings editor | Discord: https://discord.gg/DqMXJzATph'
 
--- Production build
--- ui_page 'web/dist/index.html'
--- Hot reloading
 ui_page "http://localhost:5180/"
 
 files {

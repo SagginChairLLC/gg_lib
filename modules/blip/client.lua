@@ -4,8 +4,6 @@ local activeBlips = {}
 local blipCounter = 1
 local Waypoints = {}
 
--- Note: Creates Blip
--- @param data table | Sends over coords, sprite, color, scale, display, name
 gg.blip.createBlip = function(data)
         local id = blipCounter
         if activeBlips[id] then
@@ -43,10 +41,6 @@ gg.blip.createRadiusBlip = function(data, b_id)
     return id
 end
 
-
--- Note: Creates Fading Blip
--- @param data table | Sends over coords, sprite, color, scale, display, name
--- @param duration number | Time until blip fully fades out
 gg.blip.createFadingBlip = function(data, duration)
         local id = blipCounter
         activeBlips[id] = AddBlipForCoord(data.coords)
@@ -96,7 +90,6 @@ gg.blip.CreateWaypoint = function(id, coords, color, name)
     AddTextComponentString(tostring(name or ""))
     EndTextCommandSetBlipName(Waypoints[id])
     SetBlipRouteColour(Waypoints[id], color.route_color)
-
 
     return true
 end

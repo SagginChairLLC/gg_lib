@@ -1,13 +1,6 @@
 --------------------------------------------------
 -- MARK: Popup
 --------------------------------------------------
--- The basic string popup every GG script shows ("Drive to the pickup", "Press
--- E to talk"). It renders through gg_lib's own ui_page, so a consumer needs no
--- web app of its own -- scripts call gg.popup (modules/popup/client.lua), which
--- lands here through the export below.
---
--- State lives in this VM because every consumer shares one popup: the last
--- writer wins, and duplicate values are dropped before they reach the NUI.
 
 local state = {
     enabled  = false,
@@ -32,8 +25,6 @@ local function update(partial)
 
     local enabled = partial.enabled
 
-    -- Same convenience the embedded copies had: a non-empty message shows the
-    -- popup without an explicit toggle(true).
     if enabled == nil and type(partial.message) == "string" and partial.message ~= "" and not state.enabled then
         enabled = true
     end

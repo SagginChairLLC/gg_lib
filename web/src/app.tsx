@@ -13,11 +13,9 @@ import POPUP_BASE from '@/pages/POPUP_BASE/POPUP_BASE';
 import TOOL_HUD from '@/pages/TOOL/TOOL_HUD';
 import TOOL_GIZMO from '@/pages/TOOL/TOOL_GIZMO';
 
-/** Pushed by src/client/editor.lua when /jobsettings (or an alias) opens. */
 type SettingsOpenPayload = {
     SCRIPTS?: SettingsScript[];
     CAN_EDIT?: boolean;
-    /** Resource to deep-link into — set when opened via a script's own alias. */
     FOCUS?: string | null;
     UI_THEME?: string;
     UI_FADE?: boolean;
@@ -25,13 +23,6 @@ type SettingsOpenPayload = {
     UI_LANG?: Record<string, string>;
 };
 
-/**
- * Root uses w-full rather than w-screen: w-screen is 100vw, and viewport width
- * is never used anywhere in this UI — every dimension is in vh, because height
- * is the axis that stays constant across the monitors this runs on. The body
- * already spans the frame, so full width of the parent is the same box without
- * bringing the unit in.
- */
 export default function App() {
     const visible = useLang((state) => state.visible);
     const placing = useLang((state) => state.placing);
@@ -44,22 +35,16 @@ export default function App() {
         showEditor(data.UI_LANG);
     });
 
-    // Studio accent changed while the editor is open — by this admin or another.
     useNuiEvent<Parameters<typeof applyAppearance>[0]>('settings_theme', applyAppearance);
 
-    // Placing a position: the window hides so the player can see the world,
-    // without tearing down the editor's staged edits.
     useNuiEvent<{ PLACING?: boolean }>('settings_placing', (data) => {
         useLang.setState({ placing: data.PLACING === true });
     });
 
-    // Keybind legend for any modal in-game tool.
     useNuiEvent<Parameters<typeof applyToolState>[0]>('gg_tool', applyToolState);
 
-    // Drag handles, republished each frame while the tool's cursor is up.
     useNuiEvent<Parameters<typeof applyGizmoState>[0]>('gg_gizmo', applyGizmoState);
 
-    // Partial updates from src/client/popup.lua -- any of enabled/message/position.
     useNuiEvent<Partial<PopupData>>('popup_update', (data) => {
         usePopup.setState(data);
     });
@@ -69,18 +54,8 @@ export default function App() {
             if (event.key !== 'Escape') return;
             if (!useLang.getState().visible) return;
 
-            // A keybind control is listening for its next key — that Escape
-            // means "cancel capture", not "close the editor".
             if (document.body.dataset.captureKey) return;
 
-            // Placement owns Escape. The editor is only hidden during it, not
-            // closed, so `visible` is still true and this would otherwise close
-            // it out from under the running tool: the tool then hands focus
-            // back to an editor that no longer exists, leaving the player
-            // pointing at nothing. The tool reads Escape itself and cancels.
-            //
-            // This matters most with the gizmo cursor up, because NUI focus is
-            // exactly when the browser sees the key at all.
             if (useLang.getState().placing) {
                 event.preventDefault();
                 return;
@@ -112,8 +87,6 @@ export default function App() {
                 )}
             </AnimatePresence>
             <AnimatePresence>{popupEnabled && <POPUP_BASE key="popup_base" />}</AnimatePresence>
-            {/* Always mounted: it holds one WebGL context and parks itself when
-                idle. Mounting it on demand costs a fresh context each time. */}
             <TOOL_GIZMO />
             <AnimatePresence>{toolActive && <TOOL_HUD key="tool_hud" />}</AnimatePresence>
             {import.meta.env.DEV && isEnvBrowser() && <DevSurfaceSwitcher />}

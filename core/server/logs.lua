@@ -1,20 +1,9 @@
 --------------------------------------------------
 -- MARK: Change Log
 --------------------------------------------------
--- An append-only record of who changed what. The settings tables are
--- overwritten in place, so on their own they can say what a value is but never
--- who set it or what it was before; this is the only thing that can.
---
--- Every writer funnels through here rather than each one knowing the schema:
--- gg_lib's generic store and the admin list call Logs.write directly, and the
--- per-script store -- which runs inside the consumer's own VM -- reaches it
--- through the ggLogChange export.
 
 Logs = {}
 
--- Kept from growing without bound. Settings changes are a human-paced event, so
--- this is years of history for a normal server, and the trim is cheap because
--- it only runs after a write.
 local KEEP_ROWS = 5000
 
 local trim_pending = false
@@ -23,8 +12,6 @@ local function trim()
     if trim_pending then return end
     trim_pending = true
 
-    -- Deferred: a batch save writes several rows and there is no sense
-    -- trimming after each one.
     SetTimeout(5000, function()
         trim_pending = false
 
@@ -39,11 +26,6 @@ local function trim()
     end)
 end
 
--- Values are stored in the same wrapper the settings tables use, so a bare
--- scalar and a table round-trip the same way.
--- A list setting can hold hundreds of rows. The column would take it, but the
--- log is read as "who changed what" and a wall of JSON serves nobody -- and an
--- oversized row would fail the insert, which would take the save down with it.
 local MAX_VALUE = 4000
 
 local function encode(value)
@@ -66,7 +48,6 @@ end
 -- MARK: Write
 --------------------------------------------------
 
--- rows: { { resource, path, action, old, new }, ... }, actor applied to all.
 function Logs.write(rows, actor)
     if type(rows) ~= "table" or #rows == 0 then return false end
 
@@ -95,8 +76,6 @@ function Logs.write(rows, actor)
 
     if #queries == 0 then return false end
 
-    -- A failed log must never fail the change that produced it: losing a
-    -- history row is bad, refusing an admin's save because of it is worse.
     local ok, err = pcall(function()
         return MySQL.transaction.await(queries)
     end)
@@ -111,12 +90,9 @@ function Logs.write(rows, actor)
     return true
 end
 
--- The surface consumer resources use; their store runs in their own VM.
 exports("ggLogChange", function(rows, actor)
     local invoker = GetInvokingResource()
 
-    -- The caller names its own resource, and it does not get to name someone
-    -- else's: a script can only write history about itself.
     if invoker then
         for index = 1, #(rows or {}) do
             if type(rows[index]) == "table" then rows[index].resource = invoker end
@@ -139,8 +115,6 @@ local function decode(raw)
     return wrapper.v
 end
 
--- Values are flattened to a short string here rather than in the page: the
--- editor should not have to know how a stored value is wrapped.
 local function preview(value)
     if value == nil then return nil end
 
@@ -160,8 +134,6 @@ end
 function Logs.recent(limit)
     limit = math.min(math.max(tonumber(limit) or 200, 1), 500)
 
-    -- A read before the boot thread has created the table would throw straight
-    -- through the callback; an empty history is the honest answer there.
     local ok, rows = pcall(MySQL.query.await, [[
         SELECT resource, path, action, old_value, new_value, actor,
                DATE_FORMAT(changed_at, '%Y-%m-%d %H:%i') AS changed_at

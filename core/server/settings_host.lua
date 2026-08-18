@@ -1,22 +1,12 @@
 --------------------------------------------------
 -- MARK: Settings Host
 --------------------------------------------------
--- gg_lib owns the /ggsettings editor (alias /jobsettings): it aggregates the
--- schema of every started resource carrying the settings module, serves the
--- editor UI, and routes writes back to the owning resource's exports. No
--- election, no per-script hosting -- the old GlobalState claim dance is gone
--- because there is exactly one gg_lib.
---
--- Access is enforced here, per call, never on the client: a caller passes if
--- they are on the admin list or hold the ace, and denials are logged.
 
 local peers = {}   -- cached list of resources carrying the settings module
 
 --------------------------------------------------
 -- MARK: Permissions
 --------------------------------------------------
--- Admin list first, ace second -- see core/server/admins.lua. The UI hides
--- controls for a viewer, but the save path re-checks regardless.
 
 local function canEdit(source)
     return Admins.canEdit(source)
@@ -33,8 +23,6 @@ end
 --------------------------------------------------
 -- MARK: Peer Discovery
 --------------------------------------------------
--- Scanning every resource is only worth doing when the resource list actually
--- changes, so the result is cached and refreshed on start/stop.
 
 local function scanPeers()
     local found = {}
@@ -43,8 +31,6 @@ local function scanPeers()
         local resource = GetResourceByFindIndex(index)
 
         if resource and resource ~= "gg_lib" and GetResourceState(resource) == "started" then
-            -- Resources without the module throw on the index; pcall is the
-            -- cheapest reliable "does this export exist" test available.
             local ok, alive = pcall(function()
                 return exports[resource]:ggSettingsPing()
             end)
@@ -76,8 +62,6 @@ local function describePeers()
         end
     end
 
-    -- The studio-wide pseudo-script rides along with the real ones. pcall
-    -- because a fetch during first boot can beat the table creation.
     local ok, generic = pcall(GenericSettings.describe)
     if ok and type(generic) == "table" then
         scripts[#scripts + 1] = generic
@@ -106,8 +90,6 @@ local function openFor(source, focus)
     end
 
     if not canView(source) then
-        -- The denial is logged server-side: repeated attempts from the same
-        -- player are worth an admin's attention.
         print(("^3[gg_lib] blocked settings open from %s -- not an admin^0"):format(actorFor(source)))
         TriggerClientEvent("gg_lib:settings:denied", source)
         return
@@ -119,16 +101,12 @@ local function openFor(source, focus)
     })
 end
 
--- /ggsettings is the studio command; /jobsettings stays as an alias since the
--- per-script alias commands and older docs point at it.
 for _, command in ipairs({ "ggsettings", "jobsettings" }) do
     RegisterCommand(command, function(source, args)
         openFor(source, args and args[1] or nil)
     end, false)
 end
 
--- Per-script alias commands (/taxisettings) land here from the consumer's
--- settings module, deep-linking straight to that script's page.
 exports("ggOpenSettings", function(source, focus)
     openFor(source, focus)
 end)
@@ -137,9 +115,6 @@ end)
 -- MARK: Editor Callbacks
 --------------------------------------------------
 
--- Every callback re-checks ACE on the server per call -- the UI hiding its
--- controls is cosmetic, and a hand-crafted event with a spoofed payload dies
--- here regardless of what the client claims.
 lib.callback.register("gg_lib:settings:fetch", function(source)
     if not canView(source) then
         print(("^3[gg_lib] blocked settings fetch from %s -- not an admin^0"):format(actorFor(source)))
@@ -149,19 +124,12 @@ lib.callback.register("gg_lib:settings:fetch", function(source)
     return true, {
         scripts  = describePeers(),
         can_edit = canEdit(source),
-        -- The editor is a GG UI like any other, so it obeys the studio-wide
-        -- appearance settings rather than carrying its own look.
         theme    = GenericSettings.get("theme.primary_color"),
         fade     = GenericSettings.get("theme.fade_on_hover_out"),
         fade_to  = GenericSettings.get("theme.fade_opacity"),
     }
 end)
 
--- Writes are routed to the owning resource, which validates against its own
--- schema and persists its own rows. One save carries both the changed values
--- and the reset paths, plus the config revision the editor rendered from --
--- a stale revision means another admin saved meanwhile, and the whole batch
--- is rejected before anything lands.
 lib.callback.register("gg_lib:settings:save", function(source, data)
     if not canEdit(source) then
         print(("^1[gg_lib] blocked settings WRITE from %s -- not an admin^0"):format(actorFor(source)))
@@ -204,8 +172,6 @@ lib.callback.register("gg_lib:settings:save", function(source, data)
 
     if not known then return false, { _ = "that script is not accepting settings" } end
 
-    -- Legacy peers (embedded settings module) ignore the third argument and
-    -- skip the revision check; module peers enforce it.
     local ok, response = pcall(function()
         return exports[target]:ggSettingsApply(changes, actor, data.revision)
     end)
@@ -219,8 +185,6 @@ lib.callback.register("gg_lib:settings:save", function(source, data)
 
     local changed = response.result
 
-    -- The reset half is part of the same authorized batch, so it does not
-    -- re-check the revision the apply half just bumped.
     if #resets > 0 then
         local resetOk, resetResponse = pcall(function()
             return exports[target]:ggSettingsReset(resets, actor)
@@ -269,9 +233,6 @@ end)
 --------------------------------------------------
 -- MARK: Maintenance
 --------------------------------------------------
--- Stored rows whose setting no longer exists in any schema are kept on boot
--- (a downgrade or a temporarily-removed setting must not cost an admin their
--- override) and cleaned up only through this deliberate console command.
 
 RegisterCommand("gg_settings_prune", function(source, args)
     if source ~= 0 then
@@ -287,7 +248,6 @@ RegisterCommand("gg_settings_prune", function(source, args)
         end)
 
         if not ok or type(response) ~= "table" then
-            -- Legacy peers (embedded settings module) predate this export.
             print(("[gg_lib] %s does not support pruning (update its settings module)"):format(resource))
             return
         end
@@ -315,8 +275,6 @@ end, true)
 --------------------------------------------------
 
 AddEventHandler("onResourceStart", function(resource)
-    -- Let peers finish starting before scanning, otherwise a script that boots
-    -- a tick later is missing from the list until something else changes.
     SetTimeout(2000, scanPeers)
 end)
 

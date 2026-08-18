@@ -14,13 +14,6 @@ export const buildRespObj = <T = unknown>(data: T, status: true | false, errorMs
     errorMsg,
 });
 
-/**
- * Module-level lock, keyed by event name. Lives outside React so re-renders
- * can never reset it — once a server-bound event is in flight, every further
- * click on any button firing that event is dropped until the server answers
- * (or the request fails). This is the first line of defense against players
- * cutting their connection and spamming a button to queue duplicate requests.
- */
 const pendingEvents = new Set<string>();
 
 export function isNuiEventPending(eventName: string): boolean {

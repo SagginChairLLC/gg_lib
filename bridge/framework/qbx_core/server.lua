@@ -4,8 +4,6 @@ local qbx_core = exports['qbx_core']
 local ox_inventory = exports['ox_inventory']
 local utility = require("utility")
 
--- @param source number | The player source.
--- @return string | The player's citizen ID.
 gg.framework.GetIdentifier = function(source)
     if not source then return nil end
     local player = qbx_core:GetPlayer(source)
@@ -13,16 +11,12 @@ gg.framework.GetIdentifier = function(source)
     return tostring(player.PlayerData.citizenid)
 end
 
--- @param source number | The player source.
--- @return string | The player's full name.
 gg.framework.GetName = function(source)
     local player = qbx_core:GetPlayer(source)
     if not player then return "" end
     return player.PlayerData.charinfo.firstname .. ' ' .. player.PlayerData.charinfo.lastname
 end
 
--- @param identifier string | The player's unique identifier.
--- @return string The player's full name.
 gg.framework.GetNameByIdentifier = function(identifier)
     if identifier then
         local result = MySQL.query.await('SELECT charinfo FROM players WHERE citizenid = ?', { identifier })
@@ -35,9 +29,6 @@ gg.framework.GetNameByIdentifier = function(identifier)
     return "No Name Found - " .. identifier
 end
 
--- @param source number | The player source.
--- @param job string | The job name to check for.
--- @return number | The number of players with the specified job.
 gg.framework.GetJobCount = function(source, job)
     local amount = 0
     local players = qbx_core:GetQBPlayers()
@@ -49,7 +40,6 @@ gg.framework.GetJobCount = function(source, job)
     return amount
 end
 
--- @return table | A table of all players with job and gang information.
 gg.framework.GetPlayers = function()
     local players = qbx_core:GetQBPlayers()
     local formattedPlayers = {}
@@ -65,15 +55,11 @@ gg.framework.GetPlayers = function()
     return formattedPlayers
 end
 
--- @param source number | The player source.
--- @return table | The player's job and gang data.
 gg.framework.GetPlayerGroups = function(source)
     local player = qbx_core:GetPlayer(source)
     return player.PlayerData.job, player.PlayerData.gang
 end
 
--- @param source number | The player source.
--- @return table | The player's job info, including name, label, grade, and grade name.
 gg.framework.GetPlayerJobInfo = function(source)
     local player = qbx_core:GetPlayer(source)
     local job = player.PlayerData.job
@@ -85,8 +71,6 @@ gg.framework.GetPlayerJobInfo = function(source)
     }
 end
 
--- @param source number | The player source.
--- @return table | The player's gang info, including name, label, grade, and grade name.
 gg.framework.GetPlayerGangInfo = function(source)
     local player = qbx_core:GetPlayer(source)
     local gang = player.PlayerData.gang
@@ -98,22 +82,16 @@ gg.framework.GetPlayerGangInfo = function(source)
     }
 end
 
--- @param source number | The player source.
--- @return string | The player's date of birth.
 gg.framework.GetDob = function(source)
     local player = qbx_core:GetPlayer(source)
     return player.PlayerData.charinfo.birthdate
 end
 
--- @param source number | The player source.
--- @return string | The player's gender.
 gg.framework.GetSex = function(source)
     local player = qbx_core:GetPlayer(source)
     return player.PlayerData.charinfo.gender
 end
 
--- @param source number | The player source.
--- @return table | A list of items in the player's inventory, including name, label, count, weight, and metadata.
 gg.framework.GetInventory = function(source)
     local player = qbx_core:GetPlayer(source)
     local items = {}
@@ -135,9 +113,6 @@ gg.framework.GetItemData = function(item)
     return "Item Data" -- Qbox Inventory Handles This
 end
 
--- @param item string | The item to register as usable.
--- @param cb function | The callback function to trigger when the item is used.
--- @return void
 gg.framework.RegisterUsableItem = function(item, cb)
     qbx_core:CreateUseableItem(item, cb)
 end
@@ -169,10 +144,6 @@ gg.framework.RemoveMoney = function(source, accountname, amount, reason)
     end
 end
 
--- @param source number | The player's server ID.
--- @param jobId string | The job name to set.
--- @param grade number | The grade/rank (default 0).
--- @return boolean Whether the job was set successfully.
 gg.framework.SetJob = function(source, jobId, grade)
     local Player = qbx_core:GetPlayer(source)
     if not Player then return false end
@@ -180,7 +151,6 @@ gg.framework.SetJob = function(source, jobId, grade)
     return true
 end
 
--- @param vehicle string | The vehicles model name
 gg.framework.GetVehicle = function(vehicle)
     if not vehicle then return vehicle or "" end
     local vehicle_data = qbx_core:GetVehiclesByName(vehicle)
@@ -189,7 +159,6 @@ gg.framework.GetVehicle = function(vehicle)
     end
     return vehicle
 end
-
 
 gg.framework.getItemLabel = function(item)
     local itemData = exports.ox_inventory:Items(item)
@@ -206,7 +175,6 @@ gg.framework.GetVehicleTable = function()
     end
     return out
 end
-
 
 local cached_admins = {}
 gg.framework.HasPermission = function(source)
@@ -235,8 +203,6 @@ gg.framework.HasPermission = function(source)
     cached_admins[source] = false
     return false
 end
-
-
 
 gg.framework.GetUniquePlate = function()
     local letters, numbers = {}, {}

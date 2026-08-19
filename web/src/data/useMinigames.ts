@@ -7,7 +7,19 @@ import { fetchNui, isEnvBrowser } from '@/lib/fetchNui';
  * silent close would strand the caller's promise.
  */
 
-export type MinigameName = 'skillcheck' | 'keymash' | 'timing' | 'sequence' | 'memory' | 'wordwiz' | 'connect';
+export type MinigameName =
+    | 'skillcheck'
+    | 'keymash'
+    | 'timing'
+    | 'sequence'
+    | 'hold'
+    | 'reflex'
+    | 'memory'
+    | 'wordwiz'
+    | 'connect'
+    | 'breach'
+    | 'lockpick'
+    | 'codecrack';
 
 export type MinigameConfig = {
     /** Rounds to clear in one session, where the game supports it. */
@@ -24,14 +36,16 @@ export type MinigameConfig = {
     decay?: number;
     /** keymash: percent gained per press. */
     gain?: number;
-    /** sequence/wordwiz: how many keys or letters. */
+    /** sequence/wordwiz/codecrack: how many keys, letters or digits. */
     length?: number;
-    /** memory: grid is size x size. */
+    /** memory/breach: grid is size x size. */
     size?: number;
     /** memory: tiles to memorise. */
     flashes?: number;
     /** connect: how many circuit pairs. */
     pairs?: number;
+    /** reflex: seconds allowed per key. */
+    window?: number;
 };
 
 type MinigameState = {
@@ -84,7 +98,7 @@ export type MinigameMeta = {
 export const MINIGAMES: MinigameMeta[] = [
     {
         name: 'skillcheck',
-        label: 'Skill Check',
+        label: 'Needle Drop',
         icon: 'fa-bullseye',
         category: 'skillcheck',
         description: 'A needle sweeps a circle — press the key while it crosses the marked arc. Misses and wrong keys fail.',
@@ -119,6 +133,24 @@ export const MINIGAMES: MinigameMeta[] = [
         preview: { length: 6, time: 5 },
     },
     {
+        name: 'hold',
+        label: 'Hold Steady',
+        icon: 'fa-gauge-high',
+        category: 'skillcheck',
+        description: 'Hold the key to raise the pressure and let go inside the band. Overshooting the top fails.',
+        setting: 'minigames.hold',
+        preview: { rounds: 3, zone: 18, speed: 55, time: 8 },
+    },
+    {
+        name: 'reflex',
+        label: 'Reflex Rush',
+        icon: 'fa-bolt',
+        category: 'skillcheck',
+        description: 'A key appears somewhere new with a ring closing on it — hit each one before the ring lands.',
+        setting: 'minigames.reflex',
+        preview: { rounds: 4, window: 1.3 },
+    },
+    {
         name: 'memory',
         label: 'Memory Grid',
         icon: 'fa-table-cells',
@@ -144,6 +176,33 @@ export const MINIGAMES: MinigameMeta[] = [
         description: 'Drag a wire between every pair of matching dots. Wires cannot cross, and the clock keeps running.',
         setting: 'minigames.connect',
         preview: { pairs: 4, time: 45 },
+    },
+    {
+        name: 'breach',
+        label: 'Breach Protocol',
+        icon: 'fa-terminal',
+        category: 'minigame',
+        description: 'Pull a code sequence out of a matrix, alternating between rows and columns, before the buffer fills.',
+        setting: 'minigames.breach',
+        preview: { size: 5, length: 4, time: 30 },
+    },
+    {
+        name: 'lockpick',
+        label: 'Lock Pick',
+        icon: 'fa-unlock-keyhole',
+        category: 'minigame',
+        description: 'Turn the pick with A and D and set each pin where the tension peaks. A pin set wrong snaps it.',
+        setting: 'minigames.lockpick',
+        preview: { rounds: 3, zone: 34, speed: 150, time: 25 },
+    },
+    {
+        name: 'codecrack',
+        label: 'Code Cracker',
+        icon: 'fa-lock',
+        category: 'minigame',
+        description: 'Guess the digit code from marked feedback — right digit, right slot, or not in the code at all.',
+        setting: 'minigames.codecrack',
+        preview: { length: 4, rounds: 5, time: 45 },
     },
 ];
 

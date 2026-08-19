@@ -8,6 +8,7 @@
 local KNOWN = {
     skillcheck = true, keymash = true, timing = true,
     sequence = true, memory = true, wordwiz = true, connect = true,
+    hold = true, reflex = true, breach = true, lockpick = true, codecrack = true,
 }
 
 lib.callback.register("gg_lib:minigames:defaults", function(_, name)

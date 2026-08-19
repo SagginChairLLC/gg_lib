@@ -20,6 +20,10 @@ import { finishMinigame, startMinigame, useMinigames, type MinigameConfig, type 
 type SettingsOpenPayload = {
     SCRIPTS?: SettingsScript[];
     CAN_EDIT?: boolean;
+    CAN_MANAGE?: boolean;
+    ROLE?: string;
+    ROLE_LABEL?: string;
+    TOOLS?: string[];
     FOCUS?: string | null;
     UI_THEME?: string;
     UI_FADE?: boolean;
@@ -41,7 +45,7 @@ export default function App() {
 
     useNuiEvent<SettingsOpenPayload>('settings_open', (data) => {
         applyAppearance(data);
-        openSettings(data.SCRIPTS ?? [], data.CAN_EDIT === true, data.FOCUS ?? null);
+        openSettings(data.SCRIPTS ?? [], data.CAN_EDIT === true, data.FOCUS ?? null, data);
         showEditor(data.UI_LANG);
     });
 

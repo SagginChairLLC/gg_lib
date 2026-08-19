@@ -8,11 +8,6 @@ gg.framework.getItemTable = function(item)
     return itemData or item
 end
 
-gg.framework.GetPlayerGroups = function()
-    local Player = qbx_core:GetPlayerData()
-    return Player.job.name, Player.gang.name
-end
-
 gg.framework.GetPlayerGroupInfo = function(job)
     local Player = qbx_core:GetPlayerData()
     local info 

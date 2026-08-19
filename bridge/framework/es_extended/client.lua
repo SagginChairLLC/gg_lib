@@ -9,10 +9,6 @@ gg.framework.getItemTable = function(item)
     return itemData or item
 end
 
-gg.framework.GetPlayerGroups = function()
-    return PlayerData.job.name, false
-end
-
 gg.framework.GetPlayerGroupInfo = function()
     local jobInfo = {
         name = PlayerData.job.name,

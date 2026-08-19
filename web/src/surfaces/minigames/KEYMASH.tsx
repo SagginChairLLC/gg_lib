@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
-import { FloatShell, useGameKeys, useRafLoop, type Verdict } from './parts';
+import { FloatShell, keyPool, randomKey, useGameKeys, useRafLoop, type Verdict } from './parts';
 
 /**
  * Mash the key until the glow fills the ring. The fill is a circle growing
@@ -9,9 +9,9 @@ import { FloatShell, useGameKeys, useRafLoop, type Verdict } from './parts';
  */
 export default function KEYMASH({ config, finish }: { config: MinigameConfig; finish: (success: boolean) => void }) {
     const time = Math.max(2, config.time ?? 6);
-    const decay = Math.max(0, config.decay ?? 22);
-    const gain = Math.max(1, config.gain ?? 7);
-    const key = (config.keys?.[0] ?? 'E').toUpperCase();
+    const decay = Math.max(0, config.decay ?? 16);
+    const gain = Math.max(1, config.gain ?? 6);
+    const [key] = useState(() => randomKey(keyPool(config.keys)));
 
     const value = useRef(18);
     const left = useRef(time);
@@ -57,8 +57,11 @@ export default function KEYMASH({ config, finish }: { config: MinigameConfig; fi
     const drained = CIRCUMFERENCE * (1 - Math.max(0, left.current) / time);
     const low = left.current / time < 0.25;
 
+    // The fill stays the accent whatever happens. Flooding the whole ring green
+    // on a win read as a different screen rather than a finished one; the key
+    // itself carries the result instead.
     const fill = verdict === 'won' ? 44 : (value.current / 100) * 42;
-    const fillClass = verdict === 'won' ? 'fill-emerald-400/60 gg-glow-ok' : verdict === 'lost' ? 'fill-red-400/40 gg-glow-err' : 'fill-primary/45 gg-glow';
+    const fillClass = verdict === 'lost' ? 'fill-[#f43f5e]/30 gg-glow-err' : 'fill-primary/45 gg-glow';
 
     return (
         <FloatShell>
@@ -78,7 +81,13 @@ export default function KEYMASH({ config, finish }: { config: MinigameConfig; fi
                         strokeDasharray={CIRCUMFERENCE}
                         strokeDashoffset={-drained}
                         transform="rotate(-90 50 50)"
-                        className={low || verdict === 'lost' ? 'stroke-red-400 gg-glow-err' : 'stroke-primary gg-glow'}
+                        className={
+                            verdict === 'won'
+                                ? 'stroke-[#34d399] gg-glow-ok'
+                                : low || verdict === 'lost'
+                                  ? 'stroke-[#f43f5e] gg-glow-err'
+                                  : 'stroke-primary gg-glow'
+                        }
                     />
                 </svg>
 
@@ -86,7 +95,7 @@ export default function KEYMASH({ config, finish }: { config: MinigameConfig; fi
                     <span
                         className={`font-mono text-[3.4vh] font-black tracking-wider transition-transform duration-75 ${
                             pressed ? 'scale-125' : 'scale-100'
-                        } ${verdict === 'won' ? 'text-emerald-300 gg-glow-ok' : verdict === 'lost' ? 'text-red-300 gg-glow-err' : 'text-white gg-glow'}`}
+                        } ${verdict === 'won' ? 'text-[#34d399] gg-glow-ok' : verdict === 'lost' ? 'text-[#f43f5e] gg-glow-err' : 'text-white gg-glow'}`}
                         style={{ textShadow: '0 0 1.2vh rgba(0,0,0,0.9)' }}
                     >
                         {key}

@@ -1,1 +1,0 @@
-gg.framework = gg.framework or {}

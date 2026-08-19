@@ -20,7 +20,9 @@ export default function SETTINGS_RESET({ script, disabled, onDone }: { script: S
         setError(null);
     }, [script.resource]);
 
-    const changed = script.entries.filter((entry) => !settingsEqual(entry.value, entry.default));
+    // A server-only entry never reports its value, so `stored` is what says
+    // whether resetting this script would clear anything of it.
+    const changed = script.entries.filter((entry) => (entry.server_only ? entry.stored === true : !settingsEqual(entry.value, entry.default)));
     const nothingToDo = changed.length === 0;
     const confirmed = typed.trim().toUpperCase() === CONFIRM_WORD;
 

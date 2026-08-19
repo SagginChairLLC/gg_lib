@@ -4,9 +4,18 @@
 
 Logs = {}
 
+-- A hard ceiling on top of the age cutoff, so a burst of edits inside the
+-- retention window still cannot grow the table without bound.
 local KEEP_ROWS = 5000
+local DEFAULT_DAYS = 14
 
 local trim_pending = false
+
+local function retentionDays()
+    local stored = GenericSettings and GenericSettings.get and GenericSettings.get("logs.retention_days")
+
+    return math.max(math.floor(tonumber(stored) or DEFAULT_DAYS), 1)
+end
 
 local function trim()
     if trim_pending then return end
@@ -14,6 +23,10 @@ local function trim()
 
     SetTimeout(5000, function()
         trim_pending = false
+
+        pcall(MySQL.query.await,
+            "DELETE FROM gg_studio_log WHERE changed_at < (NOW() - INTERVAL ? DAY)",
+            { retentionDays() })
 
         pcall(MySQL.query.await, [[
             DELETE FROM gg_studio_log
@@ -25,6 +38,14 @@ local function trim()
         ]], { KEEP_ROWS })
     end)
 end
+
+-- Rows also age out on their own, or a quiet server would keep them forever.
+CreateThread(function()
+    while true do
+        Wait(6 * 60 * 60 * 1000)
+        trim()
+    end
+end)
 
 local MAX_VALUE = 4000
 
@@ -115,7 +136,32 @@ local function decode(raw)
     return wrapper.v
 end
 
+local PREVIEW_MAX = 120
+
+--- One line for the table row. Every kind is capped, not just encoded tables:
+--- a long string would otherwise stretch the row it is meant to fit inside.
 local function preview(value)
+    if value == nil then return nil end
+
+    local kind = type(value)
+    local text
+
+    if kind == "boolean" then
+        text = value and "On" or "Off"
+    elseif kind == "number" or kind == "string" then
+        text = tostring(value)
+    else
+        local ok, encoded = pcall(json.encode, value)
+        text = ok and encoded or "?"
+    end
+
+    if #text > PREVIEW_MAX then return text:sub(1, PREVIEW_MAX - 3) .. "..." end
+
+    return text
+end
+
+--- The untruncated value, laid out for the inspector rather than the row.
+local function expand(value)
     if value == nil then return nil end
 
     local kind = type(value)
@@ -123,10 +169,8 @@ local function preview(value)
     if kind == "boolean" then return value and "On" or "Off" end
     if kind == "number" or kind == "string" then return tostring(value) end
 
-    local ok, encoded = pcall(json.encode, value)
+    local ok, encoded = pcall(json.encode, value, { indent = true })
     if not ok then return "?" end
-
-    if #encoded > 120 then return encoded:sub(1, 117) .. "..." end
 
     return encoded
 end
@@ -174,7 +218,7 @@ function Logs.page(opts)
     rowArgs[#rowArgs + 1] = offset
 
     local ok, rows = pcall(MySQL.query.await, [[
-        SELECT resource, path, action, old_value, new_value, actor,
+        SELECT id, resource, path, action, old_value, new_value, actor,
                DATE_FORMAT(changed_at, '%Y-%m-%d %H:%i') AS changed_at
         FROM gg_studio_log
     ]] .. clause .. [[
@@ -203,14 +247,19 @@ function Logs.page(opts)
     local out = {}
 
     for _, row in ipairs(rows or {}) do
+        local old, new = decode(row.old_value), decode(row.new_value)
+
         out[#out + 1] = {
+            id         = row.id,
             resource   = row.resource,
             path       = row.path,
             action     = row.action,
             actor      = row.actor,
             changed_at = row.changed_at,
-            old        = preview(decode(row.old_value)),
-            new        = preview(decode(row.new_value)),
+            old        = preview(old),
+            new        = preview(new),
+            old_full   = expand(old),
+            new_full   = expand(new),
         }
     end
 
@@ -218,12 +267,27 @@ function Logs.page(opts)
 end
 
 lib.callback.register("gg_lib:logs:fetch", function(source, data)
-    if not Admins.canEdit(source) then
+    if not Admins.can(source, "logs") then
         print(("^3[gg_lib] blocked log fetch from %s^0"):format(Admins.actor(source)))
         return false
     end
 
     local rows, total, actors = Logs.page(data)
 
-    return true, { rows = rows, total = total, actors = actors }
+    return true, {
+        rows      = rows,
+        total     = total,
+        actors    = actors,
+        retention = retentionDays(),
+    }
+end)
+
+lib.callback.register("gg_lib:logs:setRetention", function(source, days)
+    if not Admins.can(source, "logs") then return false end
+
+    local ok = GenericSettings.apply({ ["logs.retention_days"] = math.floor(tonumber(days) or DEFAULT_DAYS) }, Admins.actor(source))
+
+    if ok then trim() end
+
+    return ok == true
 end)

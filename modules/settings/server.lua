@@ -43,10 +43,18 @@ local function ensureTables()
     ROW_FORMAT=DYNAMIC;
     ]=])
 
-    local altered = pcall(MySQL.query.await, "ALTER TABLE `gg_studio_settings_meta` ADD COLUMN IF NOT EXISTS `version` VARCHAR(32) NULL DEFAULT NULL")
-    if not altered then
-        pcall(MySQL.query.await, "ALTER TABLE `gg_studio_settings_meta` ADD COLUMN `version` VARCHAR(32) NULL DEFAULT NULL")
-    end
+    -- Older installs predate the version column. Run once and never again:
+    -- this used to fire on every start of every script.
+    gg.db.migrate("settings_meta_version_column", function()
+        local rows = MySQL.query.await([[
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gg_studio_settings_meta' AND COLUMN_NAME = 'version'
+        ]])
+
+        if rows and #rows > 0 then return end
+
+        MySQL.query.await("ALTER TABLE `gg_studio_settings_meta` ADD COLUMN `version` VARCHAR(32) NULL DEFAULT NULL")
+    end)
 end
 
 --------------------------------------------------
@@ -88,7 +96,7 @@ local function loadOverrides()
         end
     end
 
-    gg.print.log(("Settings: read %d row(s) from the database for %s"):format(#(rows or {}), RESOURCE))
+    gg.print.debug(("Settings: read %d row(s) from the database for %s"):format(#(rows or {}), RESOURCE))
 
     return loaded, undecodable
 end
@@ -155,7 +163,7 @@ local function syncStoredVersion()
 
     if stored ~= current then
         if stored then
-            gg.print.log(("Settings: stored config last written by v%s, now running v%s"):format(stored, current))
+            gg.print.debug(("Settings: stored config last written by v%s, now running v%s"):format(stored, current))
         end
 
         MySQL.query.await(
@@ -198,12 +206,28 @@ end
 -- MARK: Replication
 --------------------------------------------------
 
+-- What a log row may carry. The log page is readable by anyone holding the
+-- logs tool, so a server-only setting records that it changed and by whom --
+-- never what it changed from or to.
+local HIDDEN = "<server only>"
+
+local function loggable(path, value)
+    if settings.isSecret(path) then return HIDDEN end
+
+    return value
+end
+
 local function broadcast(changed)
     local payload = {}
 
     for index = 1, #changed do
         local path = changed[index]
-        payload[path] = settings.read(path)
+
+        -- Server-only values are left out. Clients still get the revision, so
+        -- their own view of everything else stays in step.
+        if not settings.isSecret(path) then
+            payload[path] = settings.read(path)
+        end
     end
 
     TriggerClientEvent(("gg_settings:%s:sync"):format(RESOURCE), -1, {
@@ -213,11 +237,13 @@ local function broadcast(changed)
     })
 end
 
+--- Every stored value a client may hold. Read by the client boot callback, so
+--- server-only paths never appear in it.
 function settings.store.snapshot()
     local values = {}
 
     for path in pairs(overrides) do
-        if settings.schema[path] then
+        if settings.schema[path] and not settings.isSecret(path) then
             values[path] = settings.read(path)
         end
     end
@@ -330,7 +356,7 @@ function settings.store.save(changes, actor, expectedRevision)
 
     local history = {}
     for path, value in pairs(accepted) do
-        history[#history + 1] = { path = path, action = "change", old = overrides[path], new = value }
+        history[#history + 1] = { path = path, action = "change", old = loggable(path, overrides[path]), new = loggable(path, value) }
     end
 
     pcall(function()
@@ -392,7 +418,7 @@ function settings.store.reset(paths, actor, expectedRevision)
     local history = {}
     for index = 1, #targets do
         local path = targets[index]
-        history[#history + 1] = { path = path, action = "reset", old = overrides[path], new = restore[path] }
+        history[#history + 1] = { path = path, action = "reset", old = loggable(path, overrides[path]), new = loggable(path, restore[path]) }
     end
 
     pcall(function()

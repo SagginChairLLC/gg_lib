@@ -97,13 +97,13 @@ export default function MEMORY({ config, finish }: { config: MinigameConfig; fin
 
                     const look =
                         index === wrong
-                            ? 'border-red-400 bg-red-500/40 gg-glow-err'
+                            ? 'border-[#f43f5e] bg-[#f43f5e]/40 gg-glow-err'
                             : found.has(index) && verdict === 'won'
-                              ? 'border-emerald-400/80 bg-emerald-400/30 gg-glow-ok'
+                              ? 'border-[#34d399]/80 bg-[#34d399]/30 gg-glow-ok'
                               : lit
                                 ? 'border-primary/80 bg-primary/30 gg-glow'
                                 : missed
-                                  ? 'border-red-400/50 bg-red-500/15'
+                                  ? 'border-[#f43f5e]/50 bg-[#f43f5e]/15'
                                   : 'border-white/10 bg-neutral-900/80 hover:border-white/30 hover:bg-neutral-800/80';
 
                     return (

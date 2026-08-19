@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
-import { FloatShell, Keycap, RoundBar, useGameKeys, useRafLoop, type Verdict } from './parts';
+import { FloatShell, Keycap, RoundBar, keyPool, randomKey, useGameKeys, useRafLoop, type Verdict } from './parts';
 
 /**
  * A needle sweeps a ring; press the key while it crosses the marked arc.
@@ -33,7 +33,7 @@ function arcPath(from: number, to: number, radius: number) {
 export default function SKILLCHECK({ config, finish }: { config: MinigameConfig; finish: (success: boolean) => void }) {
     const rounds = Math.max(1, config.rounds ?? 3);
     const zone = Math.max(8, Math.min(90, config.zone ?? 40));
-    const keys = config.keys?.length ? config.keys.map((key) => key.toUpperCase()) : ['E'];
+    const keys = keyPool(config.keys);
 
     const angle = useRef(0);
     const speed = useRef(Math.max(60, config.speed ?? 220));
@@ -42,7 +42,7 @@ export default function SKILLCHECK({ config, finish }: { config: MinigameConfig;
     const makeRound = (from: number): Round => ({
         start: from + LEAD + Math.random() * 140,
         end: 0,
-        key: keys[Math.floor(Math.random() * keys.length)],
+        key: randomKey(keys),
     });
 
     const [round, setRound] = useState<Round>(() => {
@@ -95,7 +95,7 @@ export default function SKILLCHECK({ config, finish }: { config: MinigameConfig;
     const needle = polar(angle.current % 360, 41);
     const needleFrom = polar(angle.current % 360, 27);
 
-    const arcClass = verdict === 'lost' ? 'stroke-red-400 gg-glow-err' : verdict === 'won' ? 'stroke-emerald-400 gg-glow-ok' : 'stroke-primary gg-glow';
+    const arcClass = verdict === 'lost' ? 'stroke-[#f43f5e] gg-glow-err' : verdict === 'won' ? 'stroke-[#34d399] gg-glow-ok' : 'stroke-primary gg-glow';
 
     return (
         <FloatShell>
@@ -113,7 +113,7 @@ export default function SKILLCHECK({ config, finish }: { config: MinigameConfig;
                         y2={needle.y}
                         strokeWidth="2"
                         strokeLinecap="round"
-                        className={verdict === 'lost' ? 'stroke-red-300 gg-glow-err' : 'stroke-white gg-glow'}
+                        className={verdict === 'lost' ? 'stroke-[#f43f5e] gg-glow-err' : 'stroke-white gg-glow'}
                     />
                 </svg>
 

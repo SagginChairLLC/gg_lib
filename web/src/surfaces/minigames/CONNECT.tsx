@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
 import { pickPuzzle, type Cell } from '@/data/connectPuzzles';
-import { GameShell, TimerBar, useGameKeys, useRafLoop, type Verdict } from './parts';
+import { GameShell, RESULT, TimerBar, useGameKeys, useRafLoop, type Verdict } from './parts';
 
 /**
  * Connect every pair of matching dots by dragging a wire between them, ported
@@ -12,7 +12,12 @@ import { GameShell, TimerBar, useGameKeys, useRafLoop, type Verdict } from './pa
  * glowing polyline per pair through the cell centers.
  */
 
-const PAIR_COLORS = ['rgb(var(--primary))', '#34d399', '#38bdf8', '#a78bfa', '#fb7185', '#fbbf24'];
+/**
+ * Six hues chosen to stay apart for the common kinds of colour blindness --
+ * no two blues, no red next to green. Each endpoint also carries its pair
+ * number, so the puzzle is solvable without seeing colour at all.
+ */
+const PAIR_COLORS = ['#38bdf8', '#fbbf24', '#a78bfa', '#f97316', '#22d3ee', '#e879f9'];
 
 const keyOf = (cell: Cell) => `${cell[0]}:${cell[1]}`;
 
@@ -202,12 +207,12 @@ export default function CONNECT({ config, finish }: { config: MinigameConfig; fi
                                 key={`wire_${pair}`}
                                 points={wirePoints(wire)}
                                 fill="none"
-                                stroke={verdict === 'lost' ? '#f87171' : colorOf(pair)}
+                                stroke={verdict === 'lost' ? RESULT.fail : colorOf(pair)}
                                 strokeWidth={tile * 0.32}
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 opacity={0.85}
-                                style={{ filter: `drop-shadow(0 0 0.6vh ${verdict === 'lost' ? '#f87171' : colorOf(pair)})` }}
+                                style={{ filter: `drop-shadow(0 0 0.6vh ${verdict === 'lost' ? RESULT.fail : colorOf(pair)})` }}
                             />
                         ) : null,
                     )}
@@ -231,15 +236,24 @@ export default function CONNECT({ config, finish }: { config: MinigameConfig; fi
                         const lit = wires[pair] !== null || drag.current?.pair === pair;
 
                         return (
-                            <circle
-                                key={`dot_${key}`}
-                                cx={at.x}
-                                cy={at.y}
-                                r={tile * 0.26}
-                                fill={colorOf(pair)}
-                                opacity={lit ? 1 : 0.75}
-                                style={{ filter: `drop-shadow(0 0 ${lit ? '0.9vh' : '0.4vh'} ${colorOf(pair)})` }}
-                            />
+                            <g key={`dot_${key}`} style={{ filter: `drop-shadow(0 0 ${lit ? '0.9vh' : '0.4vh'} ${colorOf(pair)})` }}>
+                                <circle cx={at.x} cy={at.y} r={tile * 0.3} fill={colorOf(pair)} opacity={lit ? 1 : 0.75} />
+
+                                {/* The pair number, so the two ends can be matched
+                                    without relying on telling the colours apart. */}
+                                <text
+                                    x={at.x}
+                                    y={at.y}
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                    fill="#0a0a0c"
+                                    fontSize={tile * 0.34}
+                                    fontWeight="900"
+                                    style={{ fontFamily: 'ui-monospace, monospace' }}
+                                >
+                                    {pair + 1}
+                                </text>
+                            </g>
                         );
                     })}
                 </svg>

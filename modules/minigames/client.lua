@@ -50,6 +50,36 @@ function gg.minigames.connect(opts)
     return gg.minigames.play("connect", opts)
 end
 
+--- Hold the key to raise the pressure, release inside the band.
+--- opts: rounds, zone (band %), speed (%/s), time (s), key
+function gg.minigames.hold(opts)
+    return gg.minigames.play("hold", opts)
+end
+
+--- Hit each key before the ring closes on it.
+--- opts: rounds (keys), window (s per key), key
+function gg.minigames.reflex(opts)
+    return gg.minigames.play("reflex", opts)
+end
+
+--- Pull a code sequence out of a matrix, alternating rows and columns.
+--- opts: size (grid), length (sequence), time (s)
+function gg.minigames.breach(opts)
+    return gg.minigames.play("breach", opts)
+end
+
+--- Turn the pick with A and D, set each pin where the tension peaks.
+--- opts: rounds (pins), zone (degrees), speed (degrees/s), time (s), key
+function gg.minigames.lockpick(opts)
+    return gg.minigames.play("lockpick", opts)
+end
+
+--- Guess the digit code from per-digit feedback.
+--- opts: length (digits), rounds (guesses), time (s)
+function gg.minigames.codecrack(opts)
+    return gg.minigames.play("codecrack", opts)
+end
+
 --- Fails the running game, if any. The play call returns false.
 function gg.minigames.cancel()
     return exports.gg_lib:ggMinigameCancel()

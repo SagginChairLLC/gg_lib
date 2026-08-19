@@ -14,6 +14,7 @@ files {
     'init.lua',
     'utility.lua',
     'bridge/manifest.lua',
+    'bridge/fallback.lua',
     'bridge/**/client.lua',
     'bridge/**/server.lua',
     'modules/**/client.lua',

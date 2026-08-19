@@ -64,6 +64,10 @@ RegisterNetEvent("gg_lib:settings:open", function(data)
         data = {
             SCRIPTS  = payload.scripts,
             CAN_EDIT = payload.can_edit == true,
+            CAN_MANAGE = payload.can_manage == true,
+            ROLE     = payload.role,
+            ROLE_LABEL = payload.role_label,
+            TOOLS    = payload.tools,
             FOCUS    = data and data.focus or nil,
             UI_THEME = payload.theme,
             UI_FADE  = payload.fade,
@@ -100,7 +104,18 @@ RegisterNUICallback("settings_refresh", function(_, cb)
         return
     end
 
-    cb({ ok = true, SCRIPTS = payload.scripts, CAN_EDIT = payload.can_edit == true, UI_THEME = payload.theme, UI_FADE = payload.fade, UI_FADE_TO = payload.fade_to })
+    cb({
+        ok = true,
+        SCRIPTS = payload.scripts,
+        CAN_EDIT = payload.can_edit == true,
+        CAN_MANAGE = payload.can_manage == true,
+        ROLE = payload.role,
+        ROLE_LABEL = payload.role_label,
+        TOOLS = payload.tools,
+        UI_THEME = payload.theme,
+        UI_FADE = payload.fade,
+        UI_FADE_TO = payload.fade_to,
+    })
 end)
 
 RegisterNetEvent("gg_lib:generic:sync", function(payload)
@@ -128,7 +143,7 @@ end)
 RegisterNUICallback("admins_fetch", function(_, cb)
     local ok, payload = lib.callback.await("gg_lib:admins:fetch", false)
 
-    cb({ ok = ok == true, ADMINS = ok and payload.admins or nil, PLAYERS = ok and payload.players or nil })
+    cb({ ok = ok == true, ADMINS = ok and payload.admins or nil, PLAYERS = ok and payload.players or nil, ROLES = ok and payload.roles or nil })
 end)
 
 RegisterNUICallback("bridge_fetch", function(_, cb)
@@ -146,6 +161,128 @@ RegisterNUICallback("bridge_set_provider", function(data, cb)
     cb({ ok = ok == true, error = not ok and err or nil })
 end)
 
+--------------------------------------------------
+-- MARK: Interface test
+--------------------------------------------------
+-- The Test buttons run the real display and menu modules rather than a copy of
+-- their dispatch, so what plays here is exactly what a script would get. The
+-- modules read their provider from settings; this VM has none, so a shim feeds
+-- them the choice the page is showing.
+
+local testChoice = {}
+local testReady = false
+
+local function ensureInterface()
+    if testReady then return true end
+
+    settings = settings or {}
+    settings.generic = settings.generic or {}
+    settings.generic.get = function(path) return testChoice[path] end
+
+    gg = gg or {}
+
+    for _, path in ipairs({ "modules/display/client.lua", "modules/menu/client.lua" }) do
+        local source = LoadResourceFile(GetCurrentResourceName(), path)
+        if not source then return false end
+
+        local chunk = load(source, ("@@gg_lib/%s"):format(path), "t")
+        if not chunk then return false end
+
+        if not pcall(chunk) then return false end
+    end
+
+    testReady = true
+
+    return true
+end
+
+local MENU_WAIT_MS = 30000
+
+local function runTest(id)
+    if id == "notifications" then
+        gg.display.notify({
+            title   = "gg_lib",
+            msg     = "Notifications are wired up.",
+            status  = "success",
+            timeout = 4000,
+            icon    = "plug",
+        })
+
+        Wait(2600)
+    elseif id == "progressbar" then
+        gg.display.ProgressBar({ label = "Testing progress bars", duration = 3000 })
+    elseif id == "textui" then
+        gg.display.DoTextui({ msg = "gg_lib text UI test", position = "left" })
+        Wait(3000)
+        gg.display.RemoveTextui()
+    elseif id == "context" then
+        gg.menu.open({
+            id    = "gg_lib_bridge_test",
+            title = "gg_lib",
+        }, {
+            { title = "Context menus are wired up", description = "Close this to return to the editor", icon = "plug" },
+        })
+
+        Wait(400)
+
+        local deadline = GetGameTimer() + MENU_WAIT_MS
+
+        while GetGameTimer() < deadline do
+            if not gg.menu.getOpenContextMenu() then break end
+
+            Wait(200)
+        end
+    end
+end
+
+RegisterNUICallback("bridge_test", function(data, cb)
+    local id = data and data.id
+
+    if not ensureInterface() then
+        cb({ ok = false })
+        return
+    end
+
+    if data and data.path then testChoice[data.path] = data.value end
+
+    -- Some providers carry extra settings of their own. Without these the
+    -- stub above answers nil for them and the test falls back to a default,
+    -- so it draws something the server would not.
+    for _, extra in ipairs((data and data.tuning) or {}) do
+        if extra.path then testChoice[extra.path] = extra.value end
+    end
+
+    SetNuiFocus(false, false)
+
+    CreateThread(function()
+        local ok = pcall(runTest, id)
+
+        -- Focus goes back only if the editor is still meant to be up; closing
+        -- it mid-test must not hand focus back to a hidden page.
+        if open then SetNuiFocus(true, true) end
+
+        cb({ ok = ok })
+    end)
+end)
+
+for _, entry in ipairs({
+    { nui = "admins_set_role",    channel = "gg_lib:admins:setRole" },
+    { nui = "admins_save_role",   channel = "gg_lib:admins:saveRole" },
+    { nui = "admins_delete_role", channel = "gg_lib:admins:deleteRole" },
+}) do
+    RegisterNUICallback(entry.nui, function(data, cb)
+        local ok, result = lib.callback.await(entry.channel, false, data)
+
+        cb({
+            ok      = ok == true,
+            error   = not ok and result or nil,
+            ADMINS  = ok and result.admins or nil,
+            PLAYERS = ok and result.players or nil,
+            ROLES   = ok and result.roles or nil,
+        })
+    end)
+end
+
 RegisterNUICallback("admins_grant", function(data, cb)
     local ok, result = lib.callback.await("gg_lib:admins:grant", false, {
         player     = data and data.player,
@@ -157,6 +294,7 @@ RegisterNUICallback("admins_grant", function(data, cb)
         error   = not ok and result or nil,
         ADMINS  = ok and result.admins or nil,
         PLAYERS = ok and result.players or nil,
+        ROLES   = ok and result.roles or nil,
     })
 end)
 
@@ -170,6 +308,7 @@ RegisterNUICallback("admins_revoke", function(data, cb)
         error   = not ok and result or nil,
         ADMINS  = ok and result.admins or nil,
         PLAYERS = ok and result.players or nil,
+        ROLES   = ok and result.roles or nil,
     })
 end)
 
@@ -182,11 +321,18 @@ RegisterNUICallback("logs_fetch", function(data, cb)
     })
 
     cb({
-        ok     = ok == true,
-        ROWS   = ok and payload.rows or nil,
-        TOTAL  = ok and payload.total or 0,
-        ACTORS = ok and payload.actors or nil,
+        ok        = ok == true,
+        ROWS      = ok and payload.rows or nil,
+        TOTAL     = ok and payload.total or 0,
+        ACTORS    = ok and payload.actors or nil,
+        RETENTION = ok and payload.retention or nil,
     })
+end)
+
+RegisterNUICallback("logs_retention", function(data, cb)
+    local ok = lib.callback.await("gg_lib:logs:setRetention", false, data and data.days)
+
+    cb({ ok = ok == true })
 end)
 
 RegisterNUICallback("settings_close", function(_, cb)

@@ -29,6 +29,40 @@ local function running(name)
     return state == "started" or state == "starting"
 end
 
+--------------------------------------------------
+-- MARK: Resource info
+--------------------------------------------------
+-- Read straight off the resource's own manifest, so the page reports what the
+-- server is actually running rather than what gg_lib assumes.
+
+local STUBS = { default = true, custom = true }
+
+local function resourceInfo(name)
+    if type(name) ~= "string" or name == "" or STUBS[name] then return nil end
+
+    local state = GetResourceState(name)
+    if state == "missing" or state == "unknown" then return nil end
+
+    local function meta(key)
+        local ok, value = pcall(GetResourceMetadata, name, key, 0)
+
+        if not ok or type(value) ~= "string" or value == "" then return nil end
+
+        return value
+    end
+
+    return {
+        resource    = name,
+        state       = state,
+        version     = meta("version"),
+        author      = meta("author"),
+        fx          = meta("fx_version"),
+        game        = meta("game"),
+        lua54       = meta("lua54") == "yes",
+        description = meta("description"),
+    }
+end
+
 local function detect(category)
     local stored = GenericSettings and GenericSettings.get
         and GenericSettings.get(("bridge.%s"):format(category))
@@ -86,6 +120,7 @@ local function dependencyRows()
         rows[#rows + 1] = {
             resource = name,
             running  = running(name),
+            info     = resourceInfo(name),
         }
     end
 
@@ -117,6 +152,13 @@ local PROVIDERS = {
         path    = "interface.progressbar",
         default = "ox",
         resources = { ox = "ox_lib", qb = "qb-core", esx = "es_extended" },
+        -- ox_lib draws two different widgets and the others draw one, so this
+        -- shows up only when ox_lib is the one chosen. `when` gates a row on
+        -- another tuning row's value: the bar has no position to set.
+        tuning = {
+            { path = "interface.ox_progress_style",    label = "Style" },
+            { path = "interface.ox_progress_position", label = "Position", when = { "interface.ox_progress_style", "circle" } },
+        },
     },
     {
         id      = "textui",
@@ -125,8 +167,44 @@ local PROVIDERS = {
         path    = "interface.textui",
         default = "ox",
         resources = { ox = "ox_lib", qb = "qb-core", esx = "es_extended" },
+        tuning = {
+            { path = "interface.ox_textui_position", label = "Position" },
+        },
     },
 }
+
+--- The extra rows an ox_lib provider gets, resolved to their stored values.
+--- Empty for every other provider: nobody else offers a choice to make.
+local function tuningRows(provider, value)
+    if value ~= "ox" or not provider.tuning then return nil end
+
+    -- Every read is its own database round trip, and a gate names a path that
+    -- is usually another row on the same tile.
+    local seen = {}
+
+    local function valueOf(path)
+        if seen[path] == nil then seen[path] = GenericSettings.get(path) end
+
+        return seen[path]
+    end
+
+    local rows = {}
+
+    for _, option in ipairs(provider.tuning) do
+        local gate = option.when
+
+        if not gate or valueOf(gate[1]) == gate[2] then
+            rows[#rows + 1] = {
+                path    = option.path,
+                label   = option.label,
+                value   = valueOf(option.path),
+                options = GenericSettings.options(option.path),
+            }
+        end
+    end
+
+    return #rows > 0 and rows or nil
+end
 
 local CONTEXT_PREFERRED = "lation_ui"
 
@@ -192,6 +270,8 @@ local function providerRows()
             source   = configured and "configured" or "default",
             running  = known and met,
             requires = needs,
+            tuning   = tuningRows(provider, value),
+            info     = resourceInfo(provider.resources[value]),
             error    = (known and not met)
                 and ("requires '%s', which is not started"):format(needs)
                 or (not known)
@@ -220,6 +300,7 @@ local function providerRows()
         resource = menuLation and CONTEXT_PREFERRED or "ox_lib",
         source   = menuAuto and "detected" or "configured",
         running  = menuUp,
+        info     = resourceInfo(menuLation and CONTEXT_PREFERRED or "ox_lib"),
         error    = not menuUp and ("requires '%s', which is not started"):format(CONTEXT_PREFERRED) or nil,
     }
 
@@ -263,11 +344,29 @@ CreateThread(function()
 end)
 
 --------------------------------------------------
+-- MARK: Wired names
+--------------------------------------------------
+
+Bridges = Bridges or {}
+
+--- Which resource ended up carrying a category, for the parts of gg_lib that
+--- need to load a bridge of their own.
+function Bridges.wired(category)
+    for _, row in ipairs(own or {}) do
+        if row.category == category then return row.resource end
+    end
+
+    local resolved = detect(category)
+
+    return resolved and resolved.resource or "default"
+end
+
+--------------------------------------------------
 -- MARK: Fetch
 --------------------------------------------------
 
 lib.callback.register("gg_lib:bridge:fetch", function(source)
-    if not Admins.canView(source) then return false end
+    if not Admins.can(source, "bridges") then return false end
 
     return true, {
         dependencies = dependencyRows(),
@@ -281,6 +380,8 @@ lib.callback.register("gg_lib:bridge:fetch", function(source)
 
                 local stored = GenericSettings.get(("bridge.%s"):format(row.category))
                 copy.selected = type(stored) == "string" and stored or ""
+                copy.info     = resourceInfo(row.resource)
+                copy.required = (manifest.required or {})[row.category] == true
                 copy.path     = ("bridge.%s"):format(row.category)
 
                 local options = { { value = "", label = "Auto detect" } }
@@ -305,18 +406,28 @@ end)
 --------------------------------------------------
 
 local EDITABLE = {
-    ["interface.contextmenu"] = true,
-    ["bridge.framework"] = true,
-    ["bridge.inventory"] = true,
-    ["bridge.target"]    = true,
-    ["bridge.dispatch"]  = true,
+    ["interface.contextmenu"]   = true,
     ["interface.notifications"] = true,
     ["interface.progressbar"]   = true,
     ["interface.textui"]        = true,
 }
 
+-- Read off the provider list rather than repeated here, so a tuning row added
+-- above is editable without anyone remembering to come back.
+for _, provider in ipairs(PROVIDERS) do
+    for _, option in ipairs(provider.tuning or {}) do
+        EDITABLE[option.path] = true
+    end
+end
+
+-- Read off the manifest rather than listed by hand, so a category added there
+-- is editable on the page without anyone remembering to come back here.
+for _, category in ipairs((manifest and manifest.category_order) or {}) do
+    EDITABLE[("bridge.%s"):format(category)] = true
+end
+
 lib.callback.register("gg_lib:bridge:setProvider", function(source, data)
-    if not Admins.canEdit(source) then return false, "not allowed" end
+    if not Admins.can(source, "bridges") then return false, "not allowed" end
 
     local path = data and data.path
 

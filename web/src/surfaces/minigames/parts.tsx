@@ -7,6 +7,26 @@ import { useEffect, useRef } from 'react';
  */
 
 //--------------------------------------------------
+// MARK: Result colours
+//--------------------------------------------------
+/**
+ * One green and one red for every game, so a win reads the same in the memory
+ * grid as it does in a skill check. Kept as hex as well as classes because the
+ * SVG games need a value rather than a utility.
+ */
+
+export const RESULT = {
+    ok: '#34d399',
+    fail: '#f43f5e',
+    /** Half right — a digit in the code but in the wrong slot, and the like. */
+    near: '#fbbf24',
+} as const;
+
+// The classes below are written out rather than built from RESULT: Tailwind
+// reads them out of the source, and a name assembled at runtime is never
+// compiled. Change these together with the values above.
+
+//--------------------------------------------------
 // MARK: Input
 //--------------------------------------------------
 
@@ -14,6 +34,29 @@ export function normaliseKey(key: string): string {
     if (key === ' ') return 'SPACE';
 
     return key.toUpperCase();
+}
+
+/**
+ * Keys a prompt falls back to when the caller named none: the cluster under the
+ * left hand, where a player's fingers already are. Small on purpose — a prompt
+ * has to be answered without looking down, which rules out the far letters and
+ * the digit row.
+ */
+const KEY_POOL = 'EWASDQRF'.split('');
+
+/**
+ * The keys a game may prompt with. A caller naming its own wins; naming none
+ * means the fallback cluster. Whichever it is, a game draws from it ONCE when
+ * it starts -- draw during a render and the prompt changes every frame.
+ */
+export function keyPool(keys?: string[]): string[] {
+    const named = (keys ?? []).map(normaliseKey).filter((key) => key !== '');
+
+    return named.length > 0 ? named : KEY_POOL;
+}
+
+export function randomKey(pool: string[]): string {
+    return pool[Math.floor(Math.random() * pool.length)];
 }
 
 /**
@@ -38,6 +81,34 @@ export function useGameKeys(handler: (key: string, event: KeyboardEvent) => void
         window.addEventListener('keydown', onKey, true);
         return () => window.removeEventListener('keydown', onKey, true);
     }, []);
+}
+
+/**
+ * The keys held down right now, for the games driven by holding rather than
+ * tapping. A ref rather than state: the frame loop reads it, and re-rendering
+ * on every press would fight the loop for frames. Cleared on blur, because a
+ * window that loses focus never delivers the keyup.
+ */
+export function useHeldKeys() {
+    const held = useRef<Set<string>>(new Set());
+
+    useEffect(() => {
+        const down = (event: KeyboardEvent) => held.current.add(normaliseKey(event.key));
+        const up = (event: KeyboardEvent) => held.current.delete(normaliseKey(event.key));
+        const clear = () => held.current.clear();
+
+        window.addEventListener('keydown', down, true);
+        window.addEventListener('keyup', up, true);
+        window.addEventListener('blur', clear);
+
+        return () => {
+            window.removeEventListener('keydown', down, true);
+            window.removeEventListener('keyup', up, true);
+            window.removeEventListener('blur', clear);
+        };
+    }, []);
+
+    return held;
 }
 
 /** requestAnimationFrame loop with delta seconds, torn down on unmount. */
@@ -71,11 +142,11 @@ export type Verdict = 'won' | 'lost' | null;
 export function Keycap({ label, state, big }: { label: string; state?: 'idle' | 'active' | 'done' | 'wrong'; big?: boolean }) {
     const look =
         state === 'done'
-            ? 'border-emerald-400/80 bg-emerald-400/15 text-emerald-300 gg-glow-ok'
+            ? 'border-[#34d399]/80 bg-[#34d399]/15 text-[#34d399] gg-glow-ok'
             : state === 'active'
               ? 'border-primary/80 bg-primary/15 text-primary gg-glow'
               : state === 'wrong'
-                ? 'border-red-400/80 bg-red-500/15 text-red-300 gg-glow-err'
+                ? 'border-[#f43f5e]/80 bg-[#f43f5e]/15 text-[#f43f5e] gg-glow-err'
                 : 'border-white/20 bg-neutral-950/85 text-white/60';
 
     const size = big ? 'h-[7vh] min-w-[7vh] text-[3vh]' : 'h-[5.4vh] min-w-[5.4vh] text-[2.3vh]';
@@ -98,7 +169,7 @@ export function TimerBar({ fraction }: { fraction: number }) {
     return (
         <div className="h-[1vh] w-full overflow-hidden rounded-full bg-white/10">
             <div
-                className={`h-full rounded-full ${low ? 'bg-red-400 gg-glow-err' : 'bg-primary gg-glow'}`}
+                className={`h-full rounded-full ${low ? 'bg-[#f43f5e] gg-glow-err' : 'bg-primary gg-glow'}`}
                 style={{ width: `${clamped * 100}%` }}
             />
         </div>
@@ -120,7 +191,7 @@ export function RoundBar({ total, done, verdict }: { total: number; done: number
                         key={index}
                         className={`h-[1vh] flex-1 rounded-full transition-colors ${
                             verdict === 'lost' && index >= done
-                                ? 'bg-red-400/60 gg-glow-err'
+                                ? 'bg-[#f43f5e]/60 gg-glow-err'
                                 : filled || verdict === 'won'
                                   ? 'bg-primary gg-glow'
                                   : current
@@ -167,7 +238,7 @@ export function GameShell({
             <div className="flex w-full items-baseline gap-[1.2vh]">
                 <h1 className="flex gap-[0.9vh] text-[2.7vh] font-black uppercase tracking-wider">
                     <span className="text-white/90">{title}</span>
-                    <span className={`gg-glow ${verdict === 'lost' ? 'text-red-400 gg-glow-err' : verdict === 'won' ? 'text-emerald-400 gg-glow-ok' : 'text-primary'}`}>
+                    <span className={`gg-glow ${verdict === 'lost' ? 'text-[#f43f5e] gg-glow-err' : verdict === 'won' ? 'text-[#34d399] gg-glow-ok' : 'text-primary'}`}>
                         {accent}
                     </span>
                 </h1>

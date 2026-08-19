@@ -30,18 +30,8 @@ gg.framework.GetNameByIdentifier = function(identifier)
     return "No Name Found - " .. identifier
 end
 
-gg.framework.GetItemData = function(item)
+gg.framework.getItemTable = function(item)
     return "Item Data" -- ESX inventories handle this
-end
-
-gg.framework.GetJobCount = function(source, job)
-    return ESX.GetExtendedPlayers('job', job)
-end
-
-gg.framework.GetPlayerGroups = function(source)
-    local player = ESX.GetPlayerFromId(source)
-    local job = player.getJob()
-    return job.name, false
 end
 
 gg.framework.GetPlayerJobInfo = function(source)
@@ -54,10 +44,6 @@ gg.framework.GetPlayerJobInfo = function(source)
         gradeName = job.grade_label,
     }
     return jobInfo
-end
-
-gg.framework.GetPlayerGangInfo = function(source)
-    return false
 end
 
 gg.framework.GetPlayers = function()
@@ -73,11 +59,6 @@ gg.framework.GetPlayers = function()
         table.insert(formattedPlayers, player)
     end
     return formattedPlayers
-end
-
-gg.framework.GetDob = function(source)
-    local player = ESX.GetPlayerFromId(source)
-    return player.variables.dateofbirth
 end
 
 gg.framework.GetSex = function(source)
@@ -107,52 +88,62 @@ gg.framework.RegisterUsableItem = function(item, cb)
     ESX.RegisterUsableItem(item, cb)
 end
 
-gg.framework.GetMoney = function(src, accountname)
-    local xPlayer = ESX.GetPlayerFromId(src)
-    if accountname == 'cash' then
-        return tonumber(xPlayer.getAccount("money").money)
-    elseif accountname == 'bank' then
-        return tonumber(xPlayer.getAccount("bank").money)
-    elseif accountname == 'black_money' then
-        return tonumber(xPlayer.getAccount("black_money").money)
-    end
+--------------------------------------------------
+-- MARK: Money
+--------------------------------------------------
+-- Account names are the studio's own: cash, bank, black. They are mapped to
+-- what ESX calls them, and anything else is passed through untouched so a
+-- server with its own account type still works.
+
+local ACCOUNTS = {
+    cash  = "money",
+    bank  = "bank",
+    black = "black_money",
+}
+
+local function accountOf(name)
+    return ACCOUNTS[name] or name
 end
 
-gg.framework.AddMoney = function(src, accountname, amount, reason)
-    local xPlayer = ESX.GetPlayerFromId(src)
-    if accountname == 'cash' then
-        xPlayer.addAccountMoney("money", amount)
-        return true
-    elseif accountname == 'bank' then
-        xPlayer.addAccountMoney("bank", amount)
-        return true
-    elseif accountname == "black_money" then
-        xPlayer.addAccountMoney("black_money", amount)
-        return true
-    end
+local function balance(xPlayer, account)
+    local held = xPlayer.getAccount(accountOf(account))
+
+    return held and tonumber(held.money) or 0
 end
 
-gg.framework.RemoveMoney = function(src, accountname, amount, reason)
-    local xPlayer = ESX.GetPlayerFromId(src)
-    if accountname == 'cash' then
-        if gg.framework.GetMoney(src, accountname) >= tonumber(amount) then
-            xPlayer.removeAccountMoney("money", amount)
-            return true
-        end
-        return false
-    elseif accountname == 'bank' then
-        if gg.framework.GetMoney(src, accountname) >= tonumber(amount) then
-            xPlayer.removeAccountMoney("bank", amount)
-            return true
-        end
-        return false
-    elseif accountname == 'black_money' then
-        if gg.framework.GetMoney(src, accountname) >= tonumber(amount) then
-            xPlayer.removeAccountMoney("black_money", amount)
-            return true
-        end
-        return false
-    end
+gg.framework.GetMoney = function(source, account)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    if not xPlayer then return 0 end
+
+    return balance(xPlayer, account)
+end
+
+gg.framework.AddMoney = function(source, account, amount, reason)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    if not xPlayer then return false end
+
+    amount = tonumber(amount)
+    if not amount or amount <= 0 then return false end
+
+    xPlayer.addAccountMoney(accountOf(account), amount, reason)
+
+    return true
+end
+
+gg.framework.RemoveMoney = function(source, account, amount, reason)
+    local xPlayer = ESX.GetPlayerFromId(source)
+    if not xPlayer then return false end
+
+    amount = tonumber(amount)
+    if not amount or amount <= 0 then return false end
+
+    -- ESX takes the money whether or not it is there, leaving the account
+    -- negative, so the balance is checked before rather than after.
+    if balance(xPlayer, account) < amount then return false end
+
+    xPlayer.removeAccountMoney(accountOf(account), amount, reason)
+
+    return true
 end
 
 gg.framework.SetJob = function(source, jobId, grade)
@@ -241,44 +232,28 @@ gg.framework.getItemLabel = function(item)
 end
 
 gg.framework.GetVehicleTable = function()
-    local results = MySQL.query.await("SELECT name, model FROM vehicles")
-    if not results then return {} end
+    -- Most ESX vehicle tables carry a price and category as well. Older ones do
+    -- not, so the richer read is tried first and the plain one covers the rest.
+    local ok, results = pcall(MySQL.query.await, "SELECT name, model, price, category FROM vehicles")
+
+    if not ok or not results then
+        ok, results = pcall(MySQL.query.await, "SELECT name, model FROM vehicles")
+    end
+
+    if not ok or not results then return {} end
+
     local out = {}
     for _, row in ipairs(results) do
         if row.model then
-            out[#out + 1] = { model = row.model, label = row.name or row.model }
+            out[#out + 1] = {
+                model    = row.model,
+                label    = row.name or row.model,
+                price    = tonumber(row.price),
+                category = row.category,
+            }
         end
     end
     return out
-end
-
-local cached_admins = {}
-gg.framework.HasPermission = function(source)
-    if not source or source == 0 or type(source) ~= "number" then
-        return false
-    end
-
-    if cached_admins[source] ~= nil then
-        return cached_admins[source]
-    end
-
-    for _, id in pairs(GetPlayerIdentifiers(source)) do
-        if id:find("license") or id:find("license2") then
-            if utility.admins[id] then
-                cached_admins[source] = true
-                return true
-            end
-        end
-    end
-
-    local xPlayer = ESX.GetPlayerFromId(source)
-    if xPlayer and xPlayer.admin then
-        cached_admins[source] = true
-        return true
-    end
-
-    cached_admins[source] = false
-    return false
 end
 
 gg.framework.GetUniquePlate = function()
@@ -357,3 +332,22 @@ gg.framework.InsertVehiclePlayerGarage = function(payload)
 
     return true
 end
+--------------------------------------------------
+-- MARK: Player loaded
+--------------------------------------------------
+-- Every framework announces a character loading under its own name. The bridge
+-- turns that into the one event a script listens for, so the same handler works
+-- whichever framework the server runs.
+--
+-- The event is named after the calling resource because this file runs inside
+-- it, so each script hears only its own.
+
+local function playerLoaded(source)
+    if not source then return end
+
+    TriggerEvent(("%s:server:OnPlayerLoaded"):format(GetCurrentResourceName()), source)
+end
+
+AddEventHandler("esx:playerLoaded", function(source, xPlayer)
+    playerLoaded(source or (xPlayer and xPlayer.source))
+end)

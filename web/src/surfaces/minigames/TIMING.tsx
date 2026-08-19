@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
-import { FloatShell, Keycap, RoundBar, useGameKeys, useRafLoop, type Verdict } from './parts';
+import { FloatShell, Keycap, RoundBar, keyPool, randomKey, useGameKeys, useRafLoop, type Verdict } from './parts';
 
 /**
  * A marker sweeps the bar once; stop it inside the glowing zone. Reaching the
@@ -13,10 +13,10 @@ type Round = { zoneAt: number; zoneWidth: number };
 export default function TIMING({ config, finish }: { config: MinigameConfig; finish: (success: boolean) => void }) {
     const rounds = Math.max(1, config.rounds ?? 3);
     const baseZone = Math.max(4, Math.min(40, config.zone ?? 16));
-    const key = (config.keys?.[0] ?? 'E').toUpperCase();
+    const [key] = useState(() => randomKey(keyPool(config.keys)));
 
     const position = useRef(0);
-    const speed = useRef(Math.max(0.3, config.speed ?? 0.9));
+    const speed = useRef(Math.max(0.3, config.speed ?? 0.7));
     const phase = useRef<'play' | 'over'>('play');
 
     const makeRound = (width: number): Round => ({
@@ -63,15 +63,15 @@ export default function TIMING({ config, finish }: { config: MinigameConfig; fin
 
         setCleared(done);
         position.current = 0;
-        speed.current *= 1.12;
+        speed.current *= 1.08;
         setRound(makeRound(Math.max(4, baseZone * (1 - done * 0.18))));
     });
 
     const zoneClass =
         verdict === 'lost'
-            ? 'border-red-400/80 bg-red-400/25 gg-glow-err'
+            ? 'border-[#f43f5e]/80 bg-[#f43f5e]/25 gg-glow-err'
             : verdict === 'won'
-              ? 'border-emerald-400/80 bg-emerald-400/25 gg-glow-ok'
+              ? 'border-[#34d399]/80 bg-[#34d399]/25 gg-glow-ok'
               : 'border-primary/80 bg-primary/25 gg-glow';
 
     return (
@@ -83,7 +83,7 @@ export default function TIMING({ config, finish }: { config: MinigameConfig; fin
                 />
 
                 <div
-                    className={`absolute top-[-0.6vh] h-[4.6vh] w-[0.5vh] rounded-full ${verdict === 'lost' ? 'bg-red-300 gg-glow-err' : 'bg-white gg-glow'}`}
+                    className={`absolute top-[-0.6vh] h-[4.6vh] w-[0.5vh] rounded-full ${verdict === 'lost' ? 'bg-[#f43f5e] gg-glow-err' : 'bg-white gg-glow'}`}
                     style={{ left: `calc(${Math.min(position.current, 100)}% - 0.25vh)` }}
                 />
             </div>

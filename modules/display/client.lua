@@ -40,7 +40,7 @@ end
 gg.display.DoTextui = function(text)
     local _type = provider("interface.textui", utility.textUi)
     if _type == 'ox' then
-        return lib.showTextUI(text.msg)
+        return lib.showTextUI(text.msg, { position = provider("interface.ox_textui_position", "right-center") })
     elseif _type == 'jg' then
         return exports['jg-textui']:DrawText(text.msg)
     elseif _type == 'qb' then
@@ -73,6 +73,31 @@ RegisterNetEvent(GetCurrentResourceName()..':client:notify', function(data)
     gg.display.notify(data)
 end)
 
+-- ox_lib draws two shapes for the same thing. The style picks which; position
+-- only reaches the circle, because the bar is always along the bottom.
+local function oxProgress(data)
+    if provider("interface.ox_progress_style", "circle") == "bar" then
+        return lib.progressBar({
+            duration = data.duration,
+            label = data.label,
+            canCancel = true,
+            disable = {
+                car = true,
+            },
+        }) == true
+    end
+
+    return lib.progressCircle({
+        duration = data.duration,
+        label = data.label,
+        canCancel = true,
+        position = provider("interface.ox_progress_position", "bottom"),
+        disable = {
+            car = true,
+        },
+    }) == true
+end
+
 gg.display.ProgressBar = function(data)
     local _type = provider("interface.progressbar", utility.ProgressBar)
     local success = false
@@ -101,26 +126,10 @@ gg.display.ProgressBar = function(data)
             end
         })
         return Citizen.Await(p)
-    elseif _type == "ox" then
-        if lib.progressCircle({
-            duration = data.duration,
-            label = data.label,
-            canCancel = true,
-            position = "bottom",
-            disable = {
-                car = true,
-            },
-        }) then success = true else success = false end
     else
-        if lib.progressCircle({
-            duration = data.duration,
-            label = data.label,
-            canCancel = true,
-            position = "bottom",
-            disable = {
-                car = true,
-            },
-        }) then success = true else success = false end
+        -- Anything that is not qb or esx lands on ox_lib, which is also what an
+        -- unrecognised choice falls back to.
+        success = oxProgress(data)
     end
 
     return success

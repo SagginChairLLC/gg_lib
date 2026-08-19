@@ -47,8 +47,19 @@ local function scanPeers()
     return peers
 end
 
-local function describePeers()
+--- Only the scripts this person may read, each marked with whether they may
+--- also change it. A role scoped to one script sees only that one.
+local function describePeers(source)
     local scripts = {}
+
+    local function admit(payload)
+        if type(payload) ~= "table" then return end
+        if source and not Admins.canView(source, payload.resource) then return end
+
+        payload.can_edit = source == nil or Admins.canEdit(source, payload.resource)
+
+        scripts[#scripts + 1] = payload
+    end
 
     for index = 1, #peers do
         local resource = peers[index]
@@ -57,15 +68,11 @@ local function describePeers()
             return exports[resource]:ggSettingsDescribe()
         end)
 
-        if ok and type(payload) == "table" then
-            scripts[#scripts + 1] = payload
-        end
+        if ok then admit(payload) end
     end
 
     local ok, generic = pcall(GenericSettings.describe)
-    if ok and type(generic) == "table" then
-        scripts[#scripts + 1] = generic
-    end
+    if ok then admit(generic) end
 
     table.sort(scripts, function(left, right)
         local orderLeft  = left.order or 100
@@ -127,9 +134,20 @@ lib.callback.register("gg_lib:settings:fetch", function(source)
         return false
     end
 
+    local role = Admins.roleOf(source)
+    local tools = {}
+
+    for _, tool in ipairs(Roles.tools) do
+        if Roles.can(role, tool.id) then tools[#tools + 1] = tool.id end
+    end
+
     return true, {
-        scripts  = describePeers(),
-        can_edit = canEdit(source),
+        scripts    = describePeers(source),
+        can_edit   = canEdit(source),
+        can_manage = Admins.canManage(source),
+        role       = role,
+        role_label = (Roles.get(role) or {}).label,
+        tools      = tools,
         theme    = GenericSettings.get("theme.primary_color"),
         fade     = GenericSettings.get("theme.fade_on_hover_out"),
         fade_to  = GenericSettings.get("theme.fade_opacity"),
@@ -137,12 +155,15 @@ lib.callback.register("gg_lib:settings:fetch", function(source)
 end)
 
 lib.callback.register("gg_lib:settings:save", function(source, data)
-    if not canEdit(source) then
-        print(("^1[gg_lib] blocked settings WRITE from %s -- not an admin^0"):format(actorFor(source)))
-        return false, { _ = "you do not have permission to change settings" }
-    end
     if type(data) ~= "table" or type(data.resource) ~= "string" then
         return false, { _ = "malformed payload" }
+    end
+
+    -- Checked against the script being written, not against editing in
+    -- general: a role scoped to one script must not be able to save another.
+    if not Admins.canEdit(source, data.resource) then
+        print(("^1[gg_lib] blocked settings WRITE to %s from %s^0"):format(data.resource, actorFor(source)))
+        return false, { _ = "you do not have permission to change this script" }
     end
 
     local target  = data.resource
@@ -213,12 +234,13 @@ lib.callback.register("gg_lib:settings:save", function(source, data)
 end)
 
 lib.callback.register("gg_lib:settings:reset", function(source, data)
-    if not canEdit(source) then
-        print(("^1[gg_lib] blocked settings RESET from %s -- not an admin^0"):format(actorFor(source)))
-        return false, { _ = "you do not have permission to change settings" }
-    end
     if type(data) ~= "table" or type(data.resource) ~= "string" or type(data.paths) ~= "table" then
         return false, { _ = "malformed payload" }
+    end
+
+    if not Admins.canEdit(source, data.resource) then
+        print(("^1[gg_lib] blocked settings RESET on %s from %s^0"):format(data.resource, actorFor(source)))
+        return false, { _ = "you do not have permission to change this script" }
     end
 
     if data.resource == GenericSettings.resource then

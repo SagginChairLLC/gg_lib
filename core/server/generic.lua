@@ -36,6 +36,14 @@ local function define(path, def)
     order[#order + 1] = path
 end
 
+--- Whether a path's value must never leave the server: upload keys, tokens,
+--- anything a player has no business holding.
+local function isSecret(path)
+    local def = schema[path]
+
+    return def ~= nil and def.server_only == true
+end
+
 define("theme.apply_to_all", {
     group   = "appearance",
     label   = "Apply Theme to All UIs",
@@ -357,6 +365,46 @@ define("interface.textui", {
     default = "ox",
 })
 
+-- ox_lib ships more than one shape for these two, and no other provider gives
+-- a choice. The Bridges page shows them only while ox_lib is the one drawing.
+
+define("interface.ox_progress_style", {
+    group   = "interface",
+    label   = "ox_lib Style",
+    help    = "Which of ox_lib's two progress widgets to draw.",
+    type    = "enum",
+    options = {
+        { value = "circle", label = "Circle" },
+        { value = "bar",    label = "Bar" },
+    },
+    default = "circle",
+})
+
+define("interface.ox_progress_position", {
+    group   = "interface",
+    label   = "ox_lib Position",
+    help    = "Where the circle sits. The bar is always along the bottom.",
+    type    = "enum",
+    options = {
+        { value = "bottom", label = "Bottom" },
+        { value = "middle", label = "Middle" },
+    },
+    default = "bottom",
+})
+
+define("interface.ox_textui_position", {
+    group   = "interface",
+    label   = "ox_lib Position",
+    help    = "Which edge ox_lib anchors the prompt to.",
+    type    = "enum",
+    options = {
+        { value = "right-center", label = "Right" },
+        { value = "left-center",  label = "Left" },
+        { value = "top-center",   label = "Top" },
+    },
+    default = "right-center",
+})
+
 define("popup.enabled", {
     group   = "popup",
     label   = "Enable Popups",
@@ -418,16 +466,16 @@ define("fallback.ped", {
 
 define("minigames.skillcheck", {
     group  = "minigames",
-    label  = "Skill Check",
+    label  = "Needle Drop",
     help   = "A needle sweeps a ring -- press the key while it crosses the marked arc.",
     type   = "object",
     fields = {
         { key = "rounds", label = "Rounds",       type = "integer", min = 1, max = 10 },
         { key = "zone",   label = "Arc Size",     type = "integer", min = 8, max = 90, suffix = "deg" },
         { key = "speed",  label = "Needle Speed", type = "integer", min = 60, max = 600, suffix = "deg/s" },
-        { key = "key",    label = "Key",          type = "string", max_length = 10 },
+        { key = "key",    label = "Key",          type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
     },
-    default = { rounds = 3, zone = 40, speed = 220, key = "E" },
+    default = { rounds = 3, zone = 40, speed = 220, key = "" },
 })
 
 define("minigames.keymash", {
@@ -439,9 +487,9 @@ define("minigames.keymash", {
         { key = "time",  label = "Time Limit", type = "integer", min = 2, max = 30, suffix = "s" },
         { key = "decay", label = "Drain",      type = "integer", min = 0, max = 100, suffix = "%/s" },
         { key = "gain",  label = "Per Press",  type = "integer", min = 1, max = 50, suffix = "%" },
-        { key = "key",   label = "Key",        type = "string", max_length = 10 },
+        { key = "key",   label = "Key",        type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
     },
-    default = { time = 6, decay = 22, gain = 7, key = "E" },
+    default = { time = 6, decay = 16, gain = 6, key = "" },
 })
 
 define("minigames.timing", {
@@ -453,9 +501,9 @@ define("minigames.timing", {
         { key = "rounds", label = "Rounds",      type = "integer", min = 1, max = 10 },
         { key = "zone",   label = "Zone Size",   type = "integer", min = 4, max = 40, suffix = "%" },
         { key = "speed",  label = "Sweep Speed", type = "number", min = 0.3, max = 3, step = 0.05, suffix = "bars/s" },
-        { key = "key",    label = "Key",         type = "string", max_length = 10 },
+        { key = "key",    label = "Key",         type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
     },
-    default = { rounds = 3, zone = 16, speed = 0.9, key = "E" },
+    default = { rounds = 3, zone = 16, speed = 0.7, key = "" },
 })
 
 define("minigames.sequence", {
@@ -507,16 +555,119 @@ define("minigames.wordwiz", {
     default = { length = 6, time = 10 },
 })
 
+define("minigames.hold", {
+    group  = "minigames",
+    label  = "Hold Steady",
+    help   = "Hold the key to raise the pressure, then release inside the band.",
+    type   = "object",
+    fields = {
+        { key = "rounds", label = "Rounds",     type = "integer", min = 1, max = 8 },
+        { key = "zone",   label = "Band Size",  type = "integer", min = 4, max = 40, suffix = "%" },
+        { key = "speed",  label = "Fill Speed", type = "integer", min = 10, max = 200, suffix = "%/s" },
+        { key = "time",   label = "Time Limit", type = "integer", min = 3, max = 30, suffix = "s" },
+        { key = "key",    label = "Key",        type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
+    },
+    default = { rounds = 3, zone = 18, speed = 55, time = 8, key = "" },
+})
+
+define("minigames.reflex", {
+    group  = "minigames",
+    label  = "Reflex Rush",
+    help   = "A key appears somewhere new inside a closing ring -- hit each one in time.",
+    type   = "object",
+    fields = {
+        { key = "rounds", label = "Keys",       type = "integer", min = 1, max = 10 },
+        { key = "window", label = "Per Key",    type = "number", min = 0.4, max = 4, step = 0.1, suffix = "s" },
+        { key = "key",    label = "Key",        type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
+    },
+    default = { rounds = 4, window = 1.3, key = "" },
+})
+
+define("minigames.breach", {
+    group  = "minigames",
+    label  = "Breach Protocol",
+    help   = "Pull a code sequence out of a matrix, alternating rows and columns, before the buffer fills.",
+    type   = "object",
+    fields = {
+        { key = "size",   label = "Grid",       type = "integer", min = 4, max = 6 },
+        { key = "length", label = "Sequence",   type = "integer", min = 3, max = 6 },
+        { key = "time",   label = "Time Limit", type = "integer", min = 10, max = 120, suffix = "s" },
+    },
+    default = { size = 5, length = 4, time = 30 },
+})
+
+define("minigames.lockpick", {
+    group  = "minigames",
+    label  = "Lock Pick",
+    help   = "Turn the pick with A and D and set each pin where the tension peaks.",
+    type   = "object",
+    fields = {
+        { key = "rounds", label = "Pins",       type = "integer", min = 1, max = 6 },
+        { key = "zone",   label = "Pin Size",   type = "integer", min = 8, max = 80, suffix = "deg" },
+        { key = "speed",  label = "Turn Speed", type = "integer", min = 40, max = 400, suffix = "deg/s" },
+        { key = "time",   label = "Time Limit", type = "integer", min = 10, max = 90, suffix = "s" },
+        { key = "key",    label = "Set Key",    type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random. A and D are never used." },
+    },
+    default = { rounds = 3, zone = 34, speed = 150, time = 25, key = "" },
+})
+
+define("minigames.codecrack", {
+    group  = "minigames",
+    label  = "Code Cracker",
+    help   = "Guess the digit code from marked feedback. Digits never repeat within a code.",
+    type   = "object",
+    fields = {
+        { key = "length", label = "Digits",     type = "integer", min = 3, max = 5 },
+        { key = "rounds", label = "Guesses",    type = "integer", min = 2, max = 8 },
+        { key = "time",   label = "Time Limit", type = "integer", min = 15, max = 120, suffix = "s" },
+    },
+    default = { length = 4, rounds = 5, time = 45 },
+})
+
+--------------------------------------------------
+-- MARK: Items
+--------------------------------------------------
+-- Unlisted like the bridge and minigame entries: the Items tool owns this one.
+
+define("items.image_url", {
+    group   = "items",
+    label   = "Item Image Path",
+    help    = "Where item icons are served from, when the running inventory is not one gg_lib bridges. Put %s where the file name goes. Empty means use the detected inventory's own path.",
+    type    = "string",
+    default = "",
+})
+
+--------------------------------------------------
+-- MARK: Logs
+--------------------------------------------------
+-- Unlisted like the bridge and minigame entries: the Logs page owns this one.
+
+define("logs.retention_days", {
+    group   = "logs",
+    label   = "Keep History For",
+    help    = "Entries older than this are removed automatically.",
+    type    = "enum",
+    options = {
+        { value = 7,   label = "7 days" },
+        { value = 14,  label = "14 days" },
+        { value = 30,  label = "30 days" },
+        { value = 90,  label = "90 days" },
+        { value = 365, label = "1 year" },
+    },
+    default = 14,
+})
+
 --------------------------------------------------
 -- MARK: Screenshots
 --------------------------------------------------
 
 define("screenshot.upload_key", {
-    group   = "screenshot",
-    label   = "Upload API Key",
-    help    = "Leave empty to save images into the script's own web folder instead of uploading them.",
-    type    = "string",
-    default = "",
+    group       = "screenshot",
+    label       = "Upload API Key",
+    help        = "Leave empty to save images into the script's own web folder instead of uploading them. Stored on the server only -- once set it is never sent back out, so it can be replaced but not read.",
+    type        = "string",
+    server_only = true,
+    default     = "",
 })
 
 define("screenshot.location", {
@@ -597,6 +748,14 @@ function GenericSettings.get(path)
     return settings.deepCopy(def.default)
 end
 
+--- The choices a path offers, for pages that draw their own control instead of
+--- going through describe. Nil for anything that is not a list of options.
+function GenericSettings.options(path)
+    local def = schema[path]
+
+    return def and def.options or nil
+end
+
 function GenericSettings.describe()
     local overrides = loadOverrides()
     local entries = {}
@@ -616,7 +775,7 @@ function GenericSettings.describe()
             value = settings.deepCopy(def.default)
         end
 
-        entries[#entries + 1] = {
+        local entry = {
             path    = path,
             label   = def.label,
             help    = def.help,
@@ -630,9 +789,20 @@ function GenericSettings.describe()
             step       = def.step,
             suffix  = def.suffix,
             live    = true,
-            default = def.default,
-            value   = value,
         }
+
+        -- This payload goes to a player's UI. A server-only entry carries no
+        -- value and no default, only whether something is stored, so an owner
+        -- can see the key is set without the key crossing the wire.
+        if def.server_only then
+            entry.server_only = true
+            entry.stored      = value ~= nil and value ~= ""
+        else
+            entry.default = def.default
+            entry.value   = value
+        end
+
+        entries[#entries + 1] = entry
     end
 
     return {
@@ -684,6 +854,30 @@ function GenericSettings.snapshot(paths)
     }
 end
 
+--- The same snapshot with every server-only value dropped. Server VMs get the
+--- full one through ggGenericFetch; anything bound for a client comes through
+--- here first.
+local function forClients(snapshot)
+    local values = {}
+
+    for path, value in pairs(snapshot.values) do
+        if not isSecret(path) then values[path] = value end
+    end
+
+    return { revision = snapshot.revision, values = values }
+end
+
+-- What a log row may carry. The log page is readable by anyone holding the
+-- logs tool, so a server-only setting records that it changed and by whom --
+-- never what it changed from or to.
+local HIDDEN = "<server only>"
+
+local function loggable(path, value)
+    if isSecret(path) then return HIDDEN end
+
+    return value
+end
+
 local function pushGeneric(changed)
     if #changed == 0 then return end
 
@@ -697,7 +891,7 @@ local function pushGeneric(changed)
         end
     end
 
-    TriggerClientEvent("gg_lib:generic:sync", -1, payload)
+    TriggerClientEvent("gg_lib:generic:sync", -1, forClients(payload))
 end
 
 exports("ggGenericFetch", function()
@@ -711,7 +905,7 @@ exports("ggGenericFetch", function()
 end)
 
 lib.callback.register("gg_lib:generic:snapshot", function()
-    return true, GenericSettings.snapshot()
+    return true, forClients(GenericSettings.snapshot())
 end)
 
 AddEventHandler("onResourceStop", function(resource)
@@ -780,7 +974,7 @@ function GenericSettings.apply(changes, actor, expectedRevision)
 
     local history = {}
     for path, value in pairs(accepted) do
-        history[#history + 1] = { resource = PSEUDO, path = path, action = "change", old = previous[path], new = value }
+        history[#history + 1] = { resource = PSEUDO, path = path, action = "change", old = loggable(path, previous[path]), new = loggable(path, value) }
     end
 
     if Logs then Logs.write(history, actor) end
@@ -832,7 +1026,7 @@ function GenericSettings.reset(paths, actor)
         local path = targets[index]
         history[#history + 1] = {
             resource = PSEUDO, path = path, action = "reset",
-            old = previous[path], new = settings.deepCopy(schema[path].default),
+            old = loggable(path, previous[path]), new = loggable(path, settings.deepCopy(schema[path].default)),
         }
     end
 

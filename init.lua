@@ -117,6 +117,13 @@ local manifest do
     manifest = chunk()
 end
 
+local required = manifest.required or {}
+
+local fallback do
+    local chunk = loadChunk("bridge/fallback.lua", moduleEnv)
+    fallback = (chunk and chunk()) or {}
+end
+
 -- The Bridges page stores its selections in the database; gg_lib publishes
 -- them to a statebag and this reads it back. The read MUST be synchronous:
 -- this runs at file scope, and a yield here suspends this file while the
@@ -169,8 +176,6 @@ for _, category in ipairs(manifest.category_order) do
     local resolved, detail = detectBridge(category)
     gg.bridge[category] = resolved
 
-    local path   = ("bridge/%s/%s/%s.lua"):format(category, resolved, context)
-    local chunk  = loadChunk(path, moduleEnv)
     local loaded = false
     local failure
 
@@ -178,17 +183,41 @@ for _, category in ipairs(manifest.category_order) do
         failure = ("'%s' is not started"):format(resolved)
     end
 
-    if chunk then
-        local ok, err = pcall(chunk)
+    if resolved == "default" then
+        -- Nothing was found. There is no provider folder standing in for one:
+        -- the fallback fills the category with calls that answer rather than
+        -- leaving it nil for the first script that reaches for it.
+        local install = fallback[category]
 
-        if ok then
-            loaded = true
-        else
-            failure = tostring(err)
-            print(("^1[gg_lib] bridge %s/%s failed to load in %s: %s^0"):format(category, resolved, RESOURCE, err))
+        if install then
+            local ok, err = pcall(install)
+
+            loaded = ok
+
+            if not ok then failure = tostring(err) end
+        end
+
+        if required[category] then
+            print(("^3[gg_lib] no %s resource found. %s needs one of: %s^0"):format(
+                category, RESOURCE, table.concat(manifest.categories[category] or {}, ", ")))
         end
     else
-        loaded = true
+        local path  = ("bridge/%s/%s/%s.lua"):format(category, resolved, context)
+        local chunk = loadChunk(path, moduleEnv)
+
+        if chunk then
+            local ok, err = pcall(chunk)
+
+            if ok then
+                loaded = true
+            else
+                failure = tostring(err)
+                print(("^1[gg_lib] bridge %s/%s failed to load in %s: %s^0"):format(category, resolved, RESOURCE, err))
+            end
+        else
+            -- A provider with nothing to say on this side is normal.
+            loaded = true
+        end
     end
 
     gg.bridge_status[category] = {

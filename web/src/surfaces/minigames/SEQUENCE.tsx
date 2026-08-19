@@ -1,16 +1,19 @@
 import { useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
-import { FloatShell, Keycap, TimerBar, useGameKeys, useRafLoop, type Verdict } from './parts';
+import { FloatShell, Keycap, TimerBar, keyPool, randomKey, useGameKeys, useRafLoop, type Verdict } from './parts';
 
 /** Type the shown keys in order before the timer empties. One wrong key fails. */
 
-const POOL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 export default function SEQUENCE({ config, finish }: { config: MinigameConfig; finish: (success: boolean) => void }) {
     const length = Math.max(3, Math.min(12, config.length ?? 6));
     const time = Math.max(2, config.time ?? 5);
 
-    const [keys] = useState(() => Array.from({ length }, () => POOL[Math.floor(Math.random() * POOL.length)]));
+    const [keys] = useState(() => {
+        const pool = keyPool(config.keys);
+
+        return Array.from({ length }, () => randomKey(pool));
+    });
     const [at, setAt] = useState(0);
     const [verdict, setVerdict] = useState<Verdict>(null);
 

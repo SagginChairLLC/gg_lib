@@ -39,6 +39,16 @@ local function logInfo(message)
     print(("[settings] %s"):format(message))
 end
 
+-- Routine boot chatter (nobody asked for it, it happens on every start) goes
+-- here so a normal console stays quiet. Only prints under utility.debugMode.
+-- Anything a person actually did -- storing, resetting, pruning -- stays on
+-- logInfo so the audit trail is always visible.
+local function logDebug(message)
+    if gg and gg.print and gg.print.debug then
+        gg.print.debug(message)
+    end
+end
+
 --------------------------------------------------
 -- MARK: Path Helpers
 --------------------------------------------------
@@ -366,6 +376,15 @@ function settings.group(id, meta)
     return settings.groups[id]
 end
 
+--- Whether a path's value must never leave the server: upload keys, tokens,
+--- anything a player has no business holding. Marked with `server_only = true`
+--- on the definition.
+function settings.isSecret(path)
+    local def = settings.schema[path]
+
+    return def ~= nil and def.server_only == true
+end
+
 function settings.define(path, def)
     if settings.schema[path] then
         logError(("Setting '%s' declared twice"):format(path))
@@ -379,12 +398,26 @@ function settings.define(path, def)
 
     if def.live == nil then def.live = true end
 
+    -- The definition ships to both VMs -- a config file is a shared script --
+    -- so a default holding a real secret is on every client's disk before this
+    -- ever runs. The value belongs in the settings page, never in the config.
+    if def.server_only and def.default ~= nil and def.default ~= "" then
+        logError(("Setting '%s' is server only but ships a default value; set it on the settings page instead"):format(path))
+    end
+
     if not settings.groups[def.group] then
         settings.group(def.group, { label = def.group })
     end
 
     settings.schema[path] = def
     settings.order[#settings.order + 1] = path
+
+    -- Nothing is seeded on the client for a server-only path. A client reading
+    -- one gets nil, which is the truth, rather than a default that looks like
+    -- the real value and silently is not.
+    if def.server_only and not IsDuplicityVersion() then
+        return def
+    end
 
     settings.write(path, deepCopy(def.default))
 
@@ -437,8 +470,34 @@ function settings.column.level(label)
 end
 
 ---
-function settings.column.positions(key, label)
-    return { key = key, label = label, type = "list", item_type = "coords", nullable = true }
+--- A list of world positions on a table row.
+--- @param options table optional { model = "taxi", gap = 4.0 } -- the entity the
+---        world editor stands in for each point, and the closest two may sit.
+--- An area on a table row: the corners of a polygon, edited as a zone rather
+--- than as loose points. It encloses nothing until it has three corners.
+function settings.column.zone(key, label)
+    return {
+        key = key,
+        label = label,
+        type = "list",
+        item_type = "coords",
+        nullable = true,
+        edit_mode = "polygon",
+    }
+end
+
+function settings.column.positions(key, label, options)
+    options = options or {}
+
+    return {
+        key = key,
+        label = label,
+        type = "list",
+        item_type = "coords",
+        nullable = true,
+        preview_model = options.model,
+        min_gap = options.gap,
+    }
 end
 
 --------------------------------------------------
@@ -536,7 +595,7 @@ function settings.resolve(overrides)
     local applied = settings.apply(overrides)
 
     if #applied > 0 then
-        logInfo(("Settings: applied %d stored override(s)"):format(#applied))
+        logDebug(("Settings: applied %d stored override(s)"):format(#applied))
     end
 
     runDerives()
@@ -652,6 +711,11 @@ end
 -- MARK: Description
 --------------------------------------------------
 
+--- Whether a stored secret is actually set, without saying what it is.
+local function isFilled(value)
+    return value ~= nil and value ~= ""
+end
+
 local function isHidden(def)
     if not def.hidden then return false end
 
@@ -673,7 +737,7 @@ function settings.describe()
 
         if isHidden(def) then goto continue end
 
-        entries[#entries + 1] = {
+        local entry = {
             path        = path,
             label       = def.label,
             help        = def.help,
@@ -693,11 +757,25 @@ function settings.describe()
             suffix      = def.suffix,
             docs        = def.docs,
             preview_from= def.preview_from,
+            preview_model= def.preview_model,
+            min_gap     = def.min_gap,
+            edit_mode   = def.edit_mode,
             live        = def.live,
             advanced    = def.advanced,
-            default     = def.default,
-            value       = settings.read(path),
         }
+
+        -- This payload goes to a player's UI. A server-only entry carries no
+        -- value and no default, only whether something is stored, so an owner
+        -- can see the key is set without the key crossing the wire.
+        if def.server_only then
+            entry.server_only = true
+            entry.stored      = isFilled(settings.read(path))
+        else
+            entry.default = def.default
+            entry.value   = settings.read(path)
+        end
+
+        entries[#entries + 1] = entry
 
         ::continue::
     end

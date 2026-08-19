@@ -12,11 +12,6 @@ gg.framework.getItemTable = function(item)
     return QBCore.Shared.Items[item]
 end
 
-gg.framework.GetPlayerGroups = function()
-    local Player = QBCore.Functions.GetPlayerData()
-    return Player.job.name, Player.gang.name
-end
-
 gg.framework.GetPlayerGroupInfo = function(job)
     local Player = QBCore.Functions.GetPlayerData()
     local info

@@ -9,6 +9,10 @@ GG_PAUSE_GUARD = GG_PAUSE_GUARD or { holders = 0 }
 GG_PAUSE_GUARD.acquire = GG_PAUSE_GUARD.acquire or function() end
 GG_PAUSE_GUARD.release = GG_PAUSE_GUARD.release or function() end
 
+GG_EDITOR_BUCKET = GG_EDITOR_BUCKET or { active = false }
+GG_EDITOR_BUCKET.enter = GG_EDITOR_BUCKET.enter or function() return false end
+GG_EDITOR_BUCKET.leave = GG_EDITOR_BUCKET.leave or function() end
+
 do
     local source = LoadResourceFile("gg_lib", "modules/tool/client.lua")
     local chunk  = source and load(source, "@@gg_lib/modules/tool/client.lua", "t")
@@ -405,6 +409,7 @@ RegisterNUICallback("settings_pick_coords", function(data, cb)
     end
 
     GG_PAUSE_GUARD.acquire()
+    GG_EDITOR_BUCKET.enter()
 
     SetNuiFocus(false, false)
     SendNUIMessage({ action = "settings_placing", data = { PLACING = true } })
@@ -415,6 +420,7 @@ RegisterNUICallback("settings_pick_coords", function(data, cb)
 
     gg.tool.abort()
     destroyPreview()
+    GG_EDITOR_BUCKET.leave()
 
     SetNuiFocusKeepInput(false)
 

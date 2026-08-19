@@ -29,17 +29,6 @@ gg.framework.GetNameByIdentifier = function(identifier)
     return "No Name Found - " .. identifier
 end
 
-gg.framework.GetJobCount = function(source, job)
-    local amount = 0
-    local players = qbx_core:GetQBPlayers()
-    for _, v in pairs(players) do
-        if v and v.PlayerData.job.name == job then
-            amount = amount + 1
-        end
-    end
-    return amount
-end
-
 gg.framework.GetPlayers = function()
     local players = qbx_core:GetQBPlayers()
     local formattedPlayers = {}
@@ -55,11 +44,6 @@ gg.framework.GetPlayers = function()
     return formattedPlayers
 end
 
-gg.framework.GetPlayerGroups = function(source)
-    local player = qbx_core:GetPlayer(source)
-    return player.PlayerData.job, player.PlayerData.gang
-end
-
 gg.framework.GetPlayerJobInfo = function(source)
     local player = qbx_core:GetPlayer(source)
     local job = player.PlayerData.job
@@ -69,22 +53,6 @@ gg.framework.GetPlayerJobInfo = function(source)
         grade = job.grade,
         gradeName = job.grade.name,
     }
-end
-
-gg.framework.GetPlayerGangInfo = function(source)
-    local player = qbx_core:GetPlayer(source)
-    local gang = player.PlayerData.gang
-    return {
-        name = gang.name,
-        label = gang.label,
-        grade = gang.grade,
-        gradeName = gang.grade.name,
-    }
-end
-
-gg.framework.GetDob = function(source)
-    local player = qbx_core:GetPlayer(source)
-    return player.PlayerData.charinfo.birthdate
 end
 
 gg.framework.GetSex = function(source)
@@ -109,7 +77,7 @@ gg.framework.GetInventory = function(source)
     return items
 end
 
-gg.framework.GetItemData = function(item)
+gg.framework.getItemTable = function(item)
     return "Item Data" -- Qbox Inventory Handles This
 end
 
@@ -117,31 +85,54 @@ gg.framework.RegisterUsableItem = function(item, cb)
     qbx_core:CreateUseableItem(item, cb)
 end
 
-gg.framework.GetMoney = function(source, accountname)
-    local Player = qbx_core:GetPlayer(source).PlayerData
-    if accountname == 'cash' then
-        return Player.money.cash
-    elseif accountname == 'bank' then
-        return Player.money.bank
-    end
+--------------------------------------------------
+-- MARK: Money
+--------------------------------------------------
+-- Account names are the studio's own: cash, bank, black, crypto. They are
+-- mapped to whatever this framework calls them, and anything else is passed
+-- through untouched so a server with its own account type still works.
+
+local ACCOUNTS = {
+    cash   = "cash",
+    bank   = "bank",
+    black  = "black_money",
+    crypto = "crypto",
+}
+
+local function accountOf(name)
+    return ACCOUNTS[name] or name
 end
 
-gg.framework.AddMoney = function(source, accountname, amount, reason)
-    local Player = qbx_core:GetPlayer(source)
-    if accountname == 'cash' then
-        return Player.Functions.AddMoney('cash', amount, reason)
-    elseif accountname == 'bank' then
-        return Player.Functions.AddMoney('bank', amount, reason)
-    end
+gg.framework.GetMoney = function(source, account)
+    local player = qbx_core:GetPlayer(source)
+    if not player then return 0 end
+
+    return player.PlayerData.money[accountOf(account)] or 0
 end
 
-gg.framework.RemoveMoney = function(source, accountname, amount, reason)
-    local Player = qbx_core:GetPlayer(source)
-    if accountname == 'cash' then
-        return Player.Functions.RemoveMoney('cash', amount, reason)
-    elseif accountname == 'bank' then
-        return Player.Functions.RemoveMoney('bank', amount, reason)
-    end
+gg.framework.AddMoney = function(source, account, amount, reason)
+    local player = qbx_core:GetPlayer(source)
+    if not player then return false end
+
+    amount = tonumber(amount)
+    if not amount or amount <= 0 then return false end
+
+    return player.Functions.AddMoney(accountOf(account), amount, reason) == true
+end
+
+gg.framework.RemoveMoney = function(source, account, amount, reason)
+    local player = qbx_core:GetPlayer(source)
+    if not player then return false end
+
+    amount = tonumber(amount)
+    if not amount or amount <= 0 then return false end
+
+    -- Checked first: this framework logs a warning and answers false on its own
+    -- when the balance is short, and the caller only wants to know whether it
+    -- came out.
+    if (player.PlayerData.money[accountOf(account)] or 0) < amount then return false end
+
+    return player.Functions.RemoveMoney(accountOf(account), amount, reason) == true
 end
 
 gg.framework.SetJob = function(source, jobId, grade)
@@ -170,38 +161,16 @@ gg.framework.GetVehicleTable = function()
     local vehicles = qbx_core:GetVehiclesByName()
     if type(vehicles) == "table" then
         for model, data in pairs(vehicles) do
-            out[#out + 1] = { model = type(data.model) == "string" and data.model or tostring(model), label = data.name or tostring(model) }
+            out[#out + 1] = {
+                model    = type(data.model) == "string" and data.model or tostring(model),
+                label    = data.name or tostring(model),
+                brand    = data.brand,
+                price    = tonumber(data.price),
+                category = data.category,
+            }
         end
     end
     return out
-end
-
-local cached_admins = {}
-gg.framework.HasPermission = function(source)
-    if not source or source == 0 or type(source) ~= "number" then
-        return false
-    end
-
-    if cached_admins[source] ~= nil then
-        return cached_admins[source]
-    end
-
-    for _, id in pairs(GetPlayerIdentifiers(source)) do
-        if id:find("license") or id:find("license2") then
-            if utility.admins[id] then
-                cached_admins[source] = true
-                return true
-            end
-        end
-    end
-
-    if qbx_core:HasPermission(source, "admin") then
-        cached_admins[source] = true
-        return true
-    end
-
-    cached_admins[source] = false
-    return false
 end
 
 gg.framework.GetUniquePlate = function()
@@ -277,3 +246,26 @@ gg.framework.InsertVehiclePlayerGarage = function(payload)
 
     return true
 end
+--------------------------------------------------
+-- MARK: Player loaded
+--------------------------------------------------
+-- Every framework announces a character loading under its own name. The bridge
+-- turns that into the one event a script listens for, so the same handler works
+-- whichever framework the server runs.
+--
+-- The event is named after the calling resource because this file runs inside
+-- it, so each script hears only its own.
+
+local function playerLoaded(source)
+    if not source then return end
+
+    TriggerEvent(("%s:server:OnPlayerLoaded"):format(GetCurrentResourceName()), source)
+end
+
+AddEventHandler("QBCore:Server:OnPlayerLoaded", function(player)
+    playerLoaded(player and player.PlayerData and player.PlayerData.source)
+end)
+
+AddEventHandler("qbx_core:server:onPlayerLoaded", function(source)
+    playerLoaded(source)
+end)

@@ -53,6 +53,21 @@ local TABLES = {
     ]=],
 
     [=[
+    CREATE TABLE IF NOT EXISTS `gg_studio_roles` (
+        `id` VARCHAR(48) NOT NULL COLLATE 'utf8mb4_general_ci',
+        `label` VARCHAR(64) NOT NULL COLLATE 'utf8mb4_general_ci',
+        `icon` VARCHAR(48) DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `permissions` TEXT NOT NULL,
+        `created_by` VARCHAR(100) DEFAULT NULL COLLATE 'utf8mb4_general_ci',
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`id`) USING BTREE
+    )
+    COLLATE='utf8mb4_general_ci'
+    ENGINE=InnoDB
+    ROW_FORMAT=DYNAMIC;
+    ]=],
+
+    [=[
     CREATE TABLE IF NOT EXISTS `gg_studio_admins` (
         `identifier` VARCHAR(96) NOT NULL COLLATE 'utf8mb4_general_ci',
         `name` VARCHAR(100) DEFAULT NULL COLLATE 'utf8mb4_general_ci',
@@ -86,6 +101,9 @@ CreateThread(function()
     end
 
     addColumn("gg_studio_settings_meta", "version", "VARCHAR(32) NULL DEFAULT NULL")
+
+    -- Admins predate roles, so anyone already granted keeps full access.
+    addColumn("gg_studio_admins", "role", "VARCHAR(48) NOT NULL DEFAULT 'admin'")
 
     ready = true
     TriggerEvent("gg_lib:database:ready")

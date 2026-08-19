@@ -1,1 +1,0 @@
-gg.menu = gg.menu or {}

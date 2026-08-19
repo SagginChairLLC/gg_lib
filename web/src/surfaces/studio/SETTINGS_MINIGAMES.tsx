@@ -14,24 +14,26 @@ import {
     useSettings,
     type SettingEntry,
 } from '@/data/useSettings';
-import SettingControl from './SETTING_CONTROL';
+import SettingControl, { RowActions, type RowAction } from './SETTING_CONTROL';
 import { applyRefresh, type RefreshResponse, type SaveResponse } from './SETTINGS_SCRIPT';
-import { Tip, highlight } from './settings-utils';
+import { highlight } from './settings-utils';
 import { copyText } from '@/lib/clipboard';
 
 /**
- * The minigame catalogue with every game's defaults edited right here — no
- * hopping to Generic Settings. The values are still the same stored generic
- * entries, staged through the same draft and saved through the same host, so
- * validation, logging and factory reset all keep working.
+ * One game per row, with the selected one open in the panel beside it, so
+ * tuning a game never costs a trip away from the list. The values are the same
+ * stored generic entries, staged through the same draft and saved through the
+ * same host, so validation, logging and factory reset all keep working.
  */
 
+type Game = (typeof MINIGAMES)[number];
+
 /**
- * The ready-to-paste call for one game, with the card's current values baked
- * in as overrides — tune the sliders, copy, and any script plays exactly what
- * the card shows, stored defaults or not.
+ * The ready-to-paste call for one game, with the current values baked in as
+ * overrides — tune the defaults, copy, and any script plays exactly what the
+ * page shows, stored defaults or not.
  */
-export function exportSnippet(game: (typeof MINIGAMES)[number], entry: SettingEntry | undefined, value: unknown): string {
+export function exportSnippet(game: Game, entry: SettingEntry | undefined, value: unknown): string {
     const name = `gg${game.name.charAt(0).toUpperCase()}${game.name.slice(1)}`;
 
     const record = value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
@@ -48,131 +50,237 @@ export function exportSnippet(game: (typeof MINIGAMES)[number], entry: SettingEn
     return parts.length ? `exports.gg_lib:${name}({ ${parts.join(', ')} })` : `exports.gg_lib:${name}()`;
 }
 
-function GameCard({
+function useGameState(game: Game, entry: SettingEntry | undefined) {
+    const staged = useSettings((state) => state.draft[GENERIC_RESOURCE]?.[game.setting]);
+
+    const value = entry ? (staged ? (staged.kind === 'reset' ? entry.default : staged.value) : entry.value) : undefined;
+    const modified = entry ? !settingsEqual(value, entry.default) : false;
+
+    return { staged, value, modified };
+}
+
+function gameActions({
+    game,
+    entry,
+    value,
+    staged,
+    modified,
+    canEdit,
+    running,
+    onTry,
+    onCopied,
+    onOpen,
+}: {
+    game: Game;
+    entry: SettingEntry | undefined;
+    value: unknown;
+    staged: unknown;
+    modified: boolean;
+    canEdit: boolean;
+    running: boolean;
+    onTry: () => void;
+    onCopied: () => void;
+    onOpen?: () => void;
+}): RowAction[] {
+    const actions: RowAction[] = [
+        { id: 'try', label: t('minigames_try'), icon: 'fa-play', disabled: running, run: onTry },
+        {
+            id: 'copy',
+            label: t('minigames_copy'),
+            icon: 'fa-code',
+            run: () => {
+                if (copyText(exportSnippet(game, entry, value))) onCopied();
+            },
+        },
+    ];
+
+    if (onOpen) actions.push({ id: 'settings', label: t('minigames_settings'), icon: 'fa-sliders', run: onOpen });
+
+    if (canEdit && staged) {
+        actions.push({
+            id: 'undo',
+            label: t('settings_undo'),
+            icon: 'fa-rotate-left',
+            danger: true,
+            run: () => unstage(GENERIC_RESOURCE, game.setting),
+        });
+    } else if (canEdit && modified) {
+        actions.push({
+            id: 'reset',
+            label: t('settings_reset_default'),
+            icon: 'fa-clock-rotate-left',
+            danger: true,
+            run: () => stageReset(GENERIC_RESOURCE, game.setting),
+        });
+    }
+
+    return actions;
+}
+
+function CopiedChip() {
+    return (
+        <span className="flex items-center gap-[0.5vh] rounded-[0.4vh] bg-primary/15 px-[0.7vh] py-[0.3vh] text-[1.1vh] font-bold uppercase tracking-wide text-primary">
+            <i className="fas fa-check text-[1vh]" />
+            {t('minigames_copied')}
+        </span>
+    );
+}
+
+function GameRow({
+    game,
+    entry,
+    selected,
+    query,
+    onSelect,
+}: {
+    game: Game;
+    entry: SettingEntry | undefined;
+    selected: boolean;
+    query: string;
+    onSelect: () => void;
+}) {
+    const { staged, modified } = useGameState(game, entry);
+
+    return (
+        <button
+            type="button"
+            onClick={onSelect}
+            className={`flex w-full items-center gap-[1vh] border-b border-white/5 px-[1.1vh] py-[0.8vh] text-left transition-colors ${
+                selected ? 'bg-primary/[0.09]' : 'hover:bg-white/[0.04]'
+            }`}
+        >
+            <span
+                className={`flex h-[3.2vh] w-[3.2vh] flex-shrink-0 items-center justify-center rounded-[0.5vh] ${
+                    selected ? 'bg-primary/15 text-primary' : 'bg-white/[0.06] text-white/40'
+                }`}
+            >
+                <i className={`fas ${game.icon} text-[1.4vh]`} />
+            </span>
+
+            <span className="flex min-w-0 flex-1 flex-col">
+                <span className={`truncate text-[1.4vh] font-semibold ${selected ? 'text-primary' : 'text-white/90'}`}>
+                    {highlight(game.label, query)}
+                </span>
+                <span className="truncate text-[1.1vh] text-white/30">{highlight(game.description, query)}</span>
+            </span>
+
+            <span className="flex-shrink-0 rounded-[0.35vh] border border-white/10 px-[0.6vh] text-[1vh] font-semibold uppercase tracking-widest text-white/25">
+                {game.category === 'skillcheck' ? t('minigames_kind_check') : t('minigames_kind_game')}
+            </span>
+
+            {(staged || modified) && <span className="h-[0.7vh] w-[0.7vh] flex-shrink-0 rounded-full bg-primary" />}
+        </button>
+    );
+}
+
+function GameDetail({
     game,
     entry,
     canEdit,
     running,
-    query,
     onTry,
 }: {
-    game: (typeof MINIGAMES)[number];
+    game: Game;
     entry: SettingEntry | undefined;
     canEdit: boolean;
     running: boolean;
-    query: string;
     onTry: () => void;
 }) {
-    const staged = useSettings((state) => state.draft[GENERIC_RESOURCE]?.[game.setting]);
+    const { staged, value, modified } = useGameState(game, entry);
     const error = useSettings((state) => state.errors[game.setting]);
     const saving = useSettings((state) => state.saving);
 
     const [copied, setCopied] = useState(false);
 
-    const value = entry ? (staged ? (staged.kind === 'reset' ? entry.default : staged.value) : entry.value) : undefined;
-    const modified = entry ? !settingsEqual(value, entry.default) : false;
-
-    const copy = () => {
-        const done = copyText(exportSnippet(game, entry, value));
-
-        setCopied(done);
-        if (done) setTimeout(() => setCopied(false), 1500);
+    const copiedNow = () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
     };
 
+    const snippet = exportSnippet(game, entry, value);
+
     return (
-        <div
-            className={`flex flex-col gap-[1.2vh] rounded-[0.6vh] border p-[1.4vh] transition-colors ${
-                staged ? 'border-primary/35 bg-primary/[0.04]' : 'border-white/10 bg-white/[0.02]'
-            }`}
-        >
-            <div className="flex items-center gap-[1vh]">
-                <span className="flex h-[4vh] w-[4vh] flex-shrink-0 items-center justify-center rounded-[0.6vh] border border-primary/25 bg-primary/10">
-                    <i className={`fas ${game.icon} text-[1.7vh] text-primary`} />
-                </span>
+        <div className="flex min-h-0 w-[36vh] flex-shrink-0 flex-col rounded-[0.6vh] border border-white/10 bg-white/[0.02]">
+            <div className="flex flex-shrink-0 items-center gap-[0.9vh] border-b border-white/10 px-[1.1vh] py-[0.9vh]">
+                <i className={`fas ${game.icon} flex-shrink-0 text-[1.5vh] text-primary`} />
 
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-[0.8vh]">
-                        <h3 className="text-[1.65vh] font-semibold text-white/95">{highlight(game.label, query)}</h3>
-
-                        {modified && (
-                            <span className="flex items-center gap-[0.5vh] rounded-[0.4vh] bg-primary/15 px-[0.7vh] py-[0.15vh] text-[1vh] font-bold uppercase tracking-wide text-primary">
-                                <span className="h-[0.6vh] w-[0.6vh] rounded-full bg-primary" />
-                                {t('settings_modified')}
-                            </span>
-                        )}
-                    </div>
-                    <span className="font-mono text-[1.1vh] text-white/30">{game.name}</span>
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-[1.55vh] font-bold text-white/95">{game.label}</span>
+                    <span className="truncate font-mono text-[1.05vh] text-white/30">{game.name}</span>
                 </div>
 
-                {canEdit && staged && (
-                    <Tip label={t('settings_undo')}>
-                    <button
-                        type="button"
-                        onClick={() => unstage(GENERIC_RESOURCE, game.setting)}
-                        className="flex h-[3.2vh] w-[3.2vh] flex-shrink-0 items-center justify-center rounded-[0.5vh] border border-primary/30 text-[1.3vh] text-primary/80 transition-colors hover:bg-primary/10"
-                    >
-                        <i className="fas fa-rotate-left" />
-                    </button>
-                    </Tip>
-                )}
-                {canEdit && !staged && modified && (
-                    <Tip label={t('settings_reset_default')}>
-                    <button
-                        type="button"
-                        onClick={() => stageReset(GENERIC_RESOURCE, game.setting)}
-                        className="flex h-[3.2vh] w-[3.2vh] flex-shrink-0 items-center justify-center rounded-[0.5vh] border border-white/10 text-[1.3vh] text-white/40 transition-colors hover:border-white/30 hover:text-white/80"
-                    >
-                        <i className="fas fa-clock-rotate-left" />
-                    </button>
-                    </Tip>
+                {copied && <CopiedChip />}
+
+                {modified && !copied && (
+                    <span className="flex-shrink-0 rounded-[0.35vh] bg-primary/15 px-[0.6vh] py-[0.1vh] text-[1vh] font-bold uppercase tracking-widest text-primary">
+                        {t('settings_modified')}
+                    </span>
                 )}
 
-                <Tip label={t('minigames_copy')}>
-                <button
-                    type="button"
-                    onClick={copy}
-                    className={`flex h-[3.2vh] w-[3.2vh] flex-shrink-0 items-center justify-center rounded-[0.5vh] border text-[1.3vh] transition-colors ${
-                        copied ? 'border-primary/50 bg-primary/15 text-primary' : 'border-white/10 text-white/40 hover:border-primary/40 hover:text-primary'
-                    }`}
-                >
-                    <i className={`fas ${copied ? 'fa-check' : 'fa-code'}`} />
-                </button>
-                </Tip>
+                <RowActions
+                    actions={gameActions({
+                        game,
+                        entry,
+                        value,
+                        staged,
+                        modified,
+                        canEdit,
+                        running,
+                        onTry,
+                        onCopied: copiedNow,
+                    })}
+                />
+            </div>
 
-                <Tip label={t('minigames_try_tip')}>
+            <div className="min-h-0 flex-1 overflow-y-auto px-[1.1vh] py-[1vh]">
+                <p className="mb-[1.1vh] text-[1.25vh] leading-snug text-white/45">{game.description}</p>
+
+                {entry ? (
+                    <SettingControl
+                        def={entry}
+                        value={value}
+                        disabled={!canEdit || saving}
+                        onChange={(next) => stageValue(GENERIC_RESOURCE, game.setting, next)}
+                    />
+                ) : (
+                    <span className="text-[1.25vh] text-white/30">{t('minigames_no_entry')}</span>
+                )}
+
+                {error && (
+                    <p className="mt-[0.8vh] flex items-center gap-[0.6vh] text-[1.3vh] font-semibold text-red-400">
+                        <i className="fas fa-triangle-exclamation text-[1.2vh]" />
+                        {error}
+                    </p>
+                )}
+            </div>
+
+            <div className="flex flex-shrink-0 gap-[0.6vh] border-t border-white/10 p-[0.9vh]">
                 <button
                     type="button"
                     disabled={running}
                     onClick={onTry}
-                    className={`flex h-[3.2vh] flex-shrink-0 items-center gap-[0.7vh] rounded-[0.5vh] border px-[1.2vh] text-[1.3vh] font-semibold transition-colors ${
-                        running ? 'cursor-not-allowed border-white/5 text-white/20' : 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                    className={`flex h-[3vh] flex-1 items-center justify-center gap-[0.7vh] rounded-[0.4vh] border text-[1.25vh] font-bold transition-colors ${
+                        running
+                            ? 'cursor-not-allowed border-white/5 text-white/20'
+                            : 'border-primary/45 bg-primary/[0.12] text-primary hover:bg-primary/25'
                     }`}
                 >
-                    <i className="fas fa-play text-[1.1vh]" />
+                    <i className="fas fa-play text-[1.05vh]" />
                     {t('minigames_try')}
                 </button>
-                </Tip>
+
+                <button
+                    type="button"
+                    title={snippet}
+                    onClick={() => {
+                        if (copyText(snippet)) copiedNow();
+                    }}
+                    className="flex h-[3vh] flex-shrink-0 items-center gap-[0.6vh] rounded-[0.4vh] border border-white/10 px-[1.1vh] text-[1.2vh] font-semibold text-white/45 transition-colors hover:border-primary/40 hover:text-primary"
+                >
+                    <i className="fas fa-code text-[1.05vh]" />
+                    {t('minigames_copy')}
+                </button>
             </div>
-
-            <p className="text-[1.3vh] leading-snug text-white/45">{highlight(game.description, query)}</p>
-
-            {entry ? (
-                <SettingControl
-                    def={entry}
-                    value={value}
-                    disabled={!canEdit || saving}
-                    onChange={(next) => stageValue(GENERIC_RESOURCE, game.setting, next)}
-                />
-            ) : (
-                <span className="text-[1.25vh] text-white/30">{t('minigames_no_entry')}</span>
-            )}
-
-            {error && (
-                <p className="flex items-center gap-[0.6vh] text-[1.3vh] font-semibold text-red-400">
-                    <i className="fas fa-triangle-exclamation text-[1.2vh]" />
-                    {error}
-                </p>
-            )}
         </div>
     );
 }
@@ -186,6 +294,7 @@ export default function SETTINGS_MINIGAMES({ query }: { query: string }) {
     const generalError = useSettings((state) => state.errors._);
 
     const [justSaved, setJustSaved] = useState(false);
+    const [openGame, setOpenGame] = useState<string | null>(null);
 
     const dirty = Object.keys(draft ?? {}).length;
 
@@ -197,7 +306,9 @@ export default function SETTINGS_MINIGAMES({ query }: { query: string }) {
 
     const entryOf = (path: string) => generic?.entries.find((entry) => entry.path === path);
 
-    const tryGame = (game: (typeof MINIGAMES)[number]) => {
+    const opened = openGame ? MINIGAMES.find((game) => game.name === openGame) : undefined;
+
+    const tryGame = (game: Game) => {
         if (running) return;
 
         if (isEnvBrowser()) {
@@ -259,13 +370,7 @@ export default function SETTINGS_MINIGAMES({ query }: { query: string }) {
 
     return (
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-[2vh] py-[1.6vh]">
-                <div className="mb-[1.4vh] flex items-baseline gap-[1vh] border-b border-white/5 pb-[0.8vh]">
-                    <i className="fas fa-gamepad text-[1.6vh] text-primary/80" />
-                    <h2 className="text-[1.9vh] font-bold text-white/90">{t('minigames_title')}</h2>
-                    <span className="min-w-0 flex-1 truncate text-[1.3vh] text-white/35">{t('minigames_help')}</span>
-                </div>
-
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col px-[2vh] py-[1.6vh]">
                 {generalError && (
                     <p className="mb-[1vh] flex items-center gap-[0.6vh] text-[1.35vh] font-semibold text-red-400">
                         <i className="fas fa-triangle-exclamation text-[1.2vh]" />
@@ -273,45 +378,50 @@ export default function SETTINGS_MINIGAMES({ query }: { query: string }) {
                     </p>
                 )}
 
-                {visible.length === 0 && (
-                    <div className="flex flex-col items-center gap-[1vh] py-[10vh] text-white/35">
-                        <i className="fas fa-magnifying-glass-minus text-[4vh]" />
-                        <span className="text-[1.7vh]">{t('settings_no_results')}</span>
+                <div className="mb-[0.9vh] flex flex-shrink-0 items-baseline gap-[1vh] border-b border-white/5 pb-[0.7vh]">
+                    <i className="fas fa-gamepad text-[1.6vh] text-primary/80" />
+                    <h2 className="text-[1.8vh] font-bold text-white/90">{t('minigames_title')}</h2>
+                    <span className="min-w-0 flex-1 truncate text-[1.25vh] text-white/35">{t('minigames_help')}</span>
+                </div>
+
+                {/* One game per row, with the one you picked open beside it, so
+                    tuning a game never means leaving the list. */}
+                <div className="flex min-h-0 min-w-0 flex-1 gap-[1.2vh]">
+                    <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+                        {visible.map((game) => (
+                            <GameRow
+                                key={game.name}
+                                game={game}
+                                entry={entryOf(game.setting)}
+                                selected={game.name === openGame}
+                                query={query}
+                                onSelect={() => setOpenGame(game.name === openGame ? null : game.name)}
+                            />
+                        ))}
+
+                        {visible.length === 0 && (
+                            <div className="flex flex-col items-center gap-[1vh] py-[8vh] text-white/35">
+                                <i className="fas fa-magnifying-glass-minus text-[3.5vh]" />
+                                <span className="text-[1.5vh]">{t('settings_no_results')}</span>
+                            </div>
+                        )}
                     </div>
-                )}
 
-                {(['skillcheck', 'minigame'] as const).map((category) => {
-                    const games = visible.filter((game) => game.category === category);
-                    if (!games.length) return null;
-
-                    return (
-                        <div key={category} className="mb-[2vh]">
-                            <div className="mb-[1vh] flex items-baseline gap-[1vh]">
-                                <i className={`fas ${category === 'skillcheck' ? 'fa-bolt' : 'fa-chess-board'} text-[1.4vh] text-primary/70`} />
-                                <h3 className="text-[1.6vh] font-bold uppercase tracking-wider text-white/70">
-                                    {category === 'skillcheck' ? t('minigames_skillchecks') : t('minigames_boardgames')}
-                                </h3>
-                                <span className="min-w-0 flex-1 truncate text-[1.2vh] text-white/30">
-                                    {category === 'skillcheck' ? t('minigames_skillchecks_help') : t('minigames_boardgames_help')}
-                                </span>
-                            </div>
-
-                            <div className="grid gap-[1.2vh]" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-                                {games.map((game) => (
-                                    <GameCard
-                                        key={game.name}
-                                        game={game}
-                                        entry={entryOf(game.setting)}
-                                        canEdit={canEdit}
-                                        running={running !== null}
-                                        query={query}
-                                        onTry={() => tryGame(game)}
-                                    />
-                                ))}
-                            </div>
+                    {opened ? (
+                        <GameDetail
+                            game={opened}
+                            entry={entryOf(opened.setting)}
+                            canEdit={canEdit}
+                            running={running !== null}
+                            onTry={() => tryGame(opened)}
+                        />
+                    ) : (
+                        <div className="flex w-[36vh] flex-shrink-0 flex-col items-center justify-center gap-[1vh] rounded-[0.6vh] border border-white/10 bg-white/[0.02] text-white/20">
+                            <i className="fas fa-gamepad text-[3vh]" />
+                            <span className="px-[2vh] text-center text-[1.3vh] leading-snug">{t('minigames_pick')}</span>
                         </div>
-                    );
-                })}
+                    )}
+                </div>
             </div>
 
             {justSaved && dirty === 0 && (

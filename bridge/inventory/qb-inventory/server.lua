@@ -34,7 +34,7 @@ gg.inventory.addItem = function(src, data)
     if not success then 
         return success
     end
-    TriggerClientEvent('qb-inventory:client:ItemBox', src, gg.framework.GetItemData(data.item), 'add', data.count)
+    TriggerClientEvent('qb-inventory:client:ItemBox', src, gg.framework.getItemTable(data.item), 'add', data.count)
     return success
 end
 
@@ -49,13 +49,13 @@ gg.inventory.removeItem = function(src, data)
     if not success then
         return success, {err = "Failed to remove item"}
     end
-    TriggerClientEvent('qb-inventory:client:ItemBox', src, gg.framework.GetItemData(data.item), 'remove', data.count)
+    TriggerClientEvent('qb-inventory:client:ItemBox', src, gg.framework.getItemTable(data.item), 'remove', data.count)
     return success
 end
 
 gg.inventory.getItemTable = function(item)
-    if not item then return gg.framework.GetItemData() end
-    return gg.framework.GetItemData(item) or nil
+    if not item then return gg.framework.getItemTable() end
+    return gg.framework.getItemTable(item) or nil
 end
 
 gg.inventory.getImageUrl = function(item)

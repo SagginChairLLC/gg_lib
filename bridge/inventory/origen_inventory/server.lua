@@ -51,8 +51,8 @@ gg.inventory.removeItem = function(src, data)
 end
 
 gg.inventory.getItemTable = function(item)
-    if not item then return gg.framework.GetItemData() end
-    return gg.framework.GetItemData(item) or nil
+    if not item then return gg.framework.getItemTable() end
+    return gg.framework.getItemTable(item) or nil
 end
 
 gg.inventory.getImageUrl = function(item)

@@ -7,6 +7,11 @@ import SEQUENCE from './SEQUENCE';
 import MEMORY from './MEMORY';
 import WORDWIZ from './WORDWIZ';
 import CONNECT from './CONNECT';
+import HOLD from './HOLD';
+import REFLEX from './REFLEX';
+import BREACH from './BREACH';
+import LOCKPICK from './LOCKPICK';
+import CODECRACK from './CODECRACK';
 
 /**
  * Renders whichever game is running. Skill checks — the press-E reflex games —
@@ -23,6 +28,11 @@ const GAMES: Record<MinigameName, React.ComponentType<{ config: MinigameConfig; 
     memory: MEMORY,
     wordwiz: WORDWIZ,
     connect: CONNECT,
+    hold: HOLD,
+    reflex: REFLEX,
+    breach: BREACH,
+    lockpick: LOCKPICK,
+    codecrack: CODECRACK,
 };
 
 export default function MINIGAME_HOST() {

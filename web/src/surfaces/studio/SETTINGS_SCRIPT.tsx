@@ -8,6 +8,9 @@ import {
     LOGS_PAGE,
     BRIDGE_PAGE,
     MINIGAMES_PAGE,
+    ITEMS_PAGE,
+    VEHICLES_PAGE,
+    canUseTool,
     GENERIC_RESOURCE,
     THEME_PATH,
     applyDraftLocally,
@@ -28,21 +31,25 @@ import SETTINGS_RESET from './SETTINGS_RESET';
 import SETTINGS_LOGS from './SETTINGS_LOGS';
 import SETTINGS_BRIDGE from './SETTINGS_BRIDGE';
 import SETTINGS_MINIGAMES from './SETTINGS_MINIGAMES';
+import SETTINGS_CATALOGUE from './SETTINGS_CATALOGUE';
 import SETTINGS_PICKER from './SETTINGS_PICKER';
 import { usePicker } from '@/data/usePicker';
 import { highlight, matchesQuery, previewValue, typeHint } from './settings-utils';
 
 export type SaveResponse = { ok: boolean; errors?: Record<string, string>; changed?: string[] };
-export type RefreshResponse = { ok: boolean; SCRIPTS?: SettingsScript[]; CAN_EDIT?: boolean; UI_THEME?: string; UI_FADE?: boolean; UI_FADE_TO?: number };
+export type RefreshResponse = { ok: boolean; SCRIPTS?: SettingsScript[]; CAN_EDIT?: boolean; CAN_MANAGE?: boolean; ROLE?: string; ROLE_LABEL?: string; TOOLS?: string[]; UI_THEME?: string; UI_FADE?: boolean; UI_FADE_TO?: number };
 
 export function applyRefresh(response: RefreshResponse | undefined) {
     if (!response?.ok || !response.SCRIPTS) return;
 
-    applyScripts(response.SCRIPTS, response.CAN_EDIT);
+    applyScripts(response.SCRIPTS, response.CAN_EDIT, response);
     applyAppearance(response);
 }
 
 const SPY_OFFSET_RATIO = 0.25;
+
+const JUMP_DURATION = 340;
+const JUMP_SETTLE = 900;
 
 const EMPTY_DRAFT: Record<string, never> = {};
 
@@ -82,7 +89,7 @@ function EntryRow({
     const modified = !settingsEqual(value, entry.default);
     const drill = isDrillIn(entry);
     const wide = isWideType(entry.type);
-    const scalarDefault = !wide && entry.type !== 'boolean';
+    const scalarDefault = !wide && entry.type !== 'boolean' && !entry.server_only;
     const hint = typeHint(entry);
 
     const isStudioTheme = resource === GENERIC_RESOURCE && entry.path === THEME_PATH;
@@ -117,6 +124,15 @@ function EntryRow({
                         )}
                         {entry.advanced && (
                             <span className="rounded-[0.4vh] border border-white/10 px-[0.8vh] py-[0.2vh] text-[1.1vh] font-semibold uppercase tracking-wide text-white/35">{t('settings_advanced')}</span>
+                        )}
+                        {entry.server_only && (
+                            <span
+                                title={t('settings_server_only_help')}
+                                className="flex items-center gap-[0.5vh] rounded-[0.4vh] border border-amber-400/30 bg-amber-400/10 px-[0.8vh] py-[0.2vh] text-[1.1vh] font-bold uppercase tracking-wide text-amber-300/90"
+                            >
+                                <i className="fas fa-lock text-[1vh]" />
+                                {t('settings_server_only')}
+                            </span>
                         )}
 
                         {hint && <span className="font-mono text-[1.1vh] tracking-wide text-white/30">{hint}</span>}
@@ -284,7 +300,11 @@ function DetailPane({
 //--------------------------------------------------
 
 export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsScript; scripts: SettingsScript[] }) {
-    const canEdit = useSettings((state) => state.canEdit);
+    const globalEdit = useSettings((state) => state.canEdit);
+
+    // A role can be scoped to one script, so what matters on this page is
+    // whether the script in front of them is one of theirs.
+    const canEdit = globalEdit && script.can_edit !== false;
     const activeResource = useSettings((state) => state.activeResource);
     const pickerOpen = usePicker((state) => state.open);
     const search = useSettings((state) => state.search);
@@ -298,6 +318,11 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
     const [flashPath, setFlashPath] = useState<string | null>(null);
     const [justSaved, setJustSaved] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [adminOpen, setAdminOpen] = useState(false);
+
+    const allowedTools = useSettings((state) => state.tools);
+
+
 
     const containerRef = useRef<HTMLDivElement | null>(null);
     const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -313,16 +338,22 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
     const logsPage = activeResource === LOGS_PAGE;
     const bridgePage = activeResource === BRIDGE_PAGE;
     const minigamesPage = activeResource === MINIGAMES_PAGE;
-    const isPage = adminsPage || logsPage || bridgePage || minigamesPage;
+    const itemsPage = activeResource === ITEMS_PAGE;
+    const vehiclesPage = activeResource === VEHICLES_PAGE;
+    const isPage = adminsPage || logsPage || bridgePage || minigamesPage || itemsPage || vehiclesPage;
 
     const jobScripts = scripts.filter((candidate) => !candidate.generic);
     const genericScripts = scripts.filter((candidate) => candidate.generic);
 
+    // Keyed to the resource name alone: a refresh after save rebuilds the
+    // script objects, and resetting on that identity change would close the
+    // detail pane and throw the scroll back to the top mid-edit.
     useEffect(() => {
         setActiveGroup(script.groups[0]?.id ?? '');
         setDetailPath(null);
         containerRef.current?.scrollTo({ top: 0 });
-    }, [script.resource, script.groups]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [script.resource]);
 
     useEffect(() => {
         if (query) setDetailPath(null);
@@ -353,7 +384,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
             const staged = draft[entry.path];
             const value = staged ? (staged.kind === 'reset' ? entry.default : staged.value) : entry.value;
 
-            if (!settingsEqual(value, entry.default)) {
+            if (entry.server_only ? entry.stored === true : !settingsEqual(value, entry.default)) {
                 map.set(entry.group, (map.get(entry.group) ?? 0) + 1);
             }
         }
@@ -374,17 +405,75 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
         return () => clearTimeout(timer);
     }, [focusPath]);
 
+    const scrollAnim = useRef<number | null>(null);
+
+    const stopJump = () => {
+        if (scrollAnim.current === null) return;
+
+        cancelAnimationFrame(scrollAnim.current);
+        scrollAnim.current = null;
+    };
+
+    useEffect(() => stopJump, []);
+
+    // One eased glide whose target is recomputed every frame. Rows finish
+    // sizing while the scroll is still running, so following the live offset
+    // absorbs that drift into the animation instead of correcting after it.
     const jumpToGroup = (groupId: string) => {
         setActiveGroup(groupId);
-        spyLockUntil.current = Date.now() + 900;
+        spyLockUntil.current = Date.now() + JUMP_SETTLE + 200;
+
+        const run = () => {
+            const container = containerRef.current;
+            if (!container) return;
+
+            stopJump();
+
+            const start = container.scrollTop;
+            const began = performance.now();
+
+            const targetTop = () => {
+                const section = sectionRefs.current[groupId];
+                if (!section) return container.scrollTop;
+
+                const top = section.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+
+                // Clamped, or a jump to the last group chases a position the
+                // container can never reach and never settles.
+                return Math.max(0, Math.min(top, container.scrollHeight - container.clientHeight));
+            };
+
+            const step = () => {
+                const elapsed = performance.now() - began;
+                const target = targetTop();
+
+                if (elapsed < JUMP_DURATION) {
+                    const progress = elapsed / JUMP_DURATION;
+                    container.scrollTop = start + (target - start) * (1 - (1 - progress) ** 3);
+                } else {
+                    const drift = target - container.scrollTop;
+
+                    if (elapsed > JUMP_SETTLE || Math.abs(drift) <= 0.5) {
+                        container.scrollTop = target;
+                        scrollAnim.current = null;
+                        return;
+                    }
+
+                    container.scrollTop += drift * 0.2;
+                }
+
+                scrollAnim.current = requestAnimationFrame(step);
+            };
+
+            scrollAnim.current = requestAnimationFrame(step);
+        };
 
         if (detailPath) {
             setDetailPath(null);
-            requestAnimationFrame(() => sectionRefs.current[groupId]?.scrollIntoView({ block: 'start' }));
-            return;
+            requestAnimationFrame(run);
+        } else {
+            run();
         }
-
-        sectionRefs.current[groupId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
     const onScroll = () => {
@@ -410,7 +499,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
 
     const renderScriptItem = (candidate: SettingsScript) => {
         const isCurrent = !isPage && candidate.resource === script.resource;
-        const hasOverrides = candidate.entries.some((entry) => !settingsEqual(entry.value, entry.default));
+        const hasOverrides = candidate.entries.some((entry) => (entry.server_only ? entry.stored === true : !settingsEqual(entry.value, entry.default)));
 
         return (
             <div key={candidate.resource}>
@@ -457,19 +546,65 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
         );
     };
 
-    const renderPageItem = (page: string, icon: string, label: string, isCurrent: boolean) => (
-        <button
-            type="button"
-            onClick={() => !isCurrent && setActiveScript(page)}
-            className={`relative flex w-full items-center gap-[1vh] rounded-[0.4vh] px-[1vh] py-[0.9vh] text-left transition-colors duration-200 ${
-                isCurrent ? 'bg-white/[0.05] text-white' : 'text-white/60 hover:bg-white/[0.03] hover:text-white/90'
-            }`}
-        >
-            <span className={`absolute left-0 top-1/2 h-[60%] w-[0.35vh] -translate-y-1/2 rounded-full ${isCurrent ? 'bg-primary' : 'bg-transparent'}`} />
-            <i className={`fas ${icon} w-[2vh] text-center text-[1.5vh] ${isCurrent ? 'text-primary' : 'text-white/35'}`} />
-            <span className="min-w-0 flex-1 truncate text-[1.5vh] font-semibold">{label}</span>
-        </button>
-    );
+    // One rail entry instead of a button per tool: the list keeps growing, and
+    // a flat stack of them buries the scripts above it.
+    const renderAdminGroup = () => {
+        const tools = [
+            { page: ADMINS_PAGE, icon: 'fa-user-shield', label: t('admins_title'), current: adminsPage, need: null },
+            { page: LOGS_PAGE, icon: 'fa-clock-rotate-left', label: t('logs_title'), current: logsPage, need: 'logs' },
+            { page: BRIDGE_PAGE, icon: 'fa-plug', label: t('bridge_title'), current: bridgePage, need: 'bridges' },
+            { page: MINIGAMES_PAGE, icon: 'fa-gamepad', label: t('minigames_title'), current: minigamesPage, need: 'minigames' },
+            { page: ITEMS_PAGE, icon: 'fa-boxes-stacked', label: t('catalogue_items'), current: itemsPage, need: 'items' },
+            { page: VEHICLES_PAGE, icon: 'fa-car', label: t('catalogue_vehicles'), current: vehiclesPage, need: 'vehicles' },
+        ].filter((tool) => tool.need === null || canUseTool(tool.need));
+
+        if (tools.length === 0) return null;
+
+        const open = adminOpen || isPage;
+        const active = tools.find((tool) => tool.current);
+
+        return (
+            <div>
+                <button
+                    type="button"
+                    onClick={() => setAdminOpen(!open)}
+                    className={`relative flex w-full items-center gap-[1vh] rounded-[0.4vh] px-[1vh] py-[0.9vh] text-left transition-colors duration-200 ${
+                        isPage ? 'text-white' : 'text-white/60 hover:bg-white/[0.03] hover:text-white/90'
+                    }`}
+                >
+                    <span className={`absolute left-0 top-1/2 h-[60%] w-[0.35vh] -translate-y-1/2 rounded-full ${isPage ? 'bg-primary' : 'bg-transparent'}`} />
+                    <i className={`fas fa-toolbox w-[2vh] text-center text-[1.5vh] ${isPage ? 'text-primary' : 'text-white/35'}`} />
+                    <span className="min-w-0 flex-1 truncate text-[1.5vh] font-semibold">{t('settings_admin_tools')}</span>
+
+                    {!open && active && <span className="flex-shrink-0 truncate text-[1.2vh] text-white/35">{active.label}</span>}
+
+                    <i className={`fas fa-chevron-down flex-shrink-0 text-[1.1vh] text-white/25 transition-transform ${open ? 'rotate-180' : ''}`} />
+                </button>
+
+                {open && (
+                    <div className="mb-[0.6vh] ml-[1.9vh] mt-[0.3vh] flex flex-col gap-[0.2vh] border-l border-white/10 pl-[0.7vh]">
+                        {tools.map((tool) => (
+                            <button
+                                key={tool.page}
+                                type="button"
+                                onClick={() => !tool.current && setActiveScript(tool.page)}
+                                className={`group flex items-center gap-[0.9vh] rounded-[0.4vh] px-[0.9vh] py-[0.7vh] text-left transition-colors duration-200 ${
+                                    tool.current ? 'bg-white/[0.05] text-white' : 'text-white/50 hover:bg-white/[0.03] hover:text-white/80'
+                                }`}
+                            >
+                                <i
+                                    className={`fas ${tool.icon} w-[1.8vh] text-center text-[1.3vh] transition-colors ${
+                                        tool.current ? 'text-primary' : 'text-white/30 group-hover:text-primary/70'
+                                    }`}
+                                />
+                                <span className="min-w-0 flex-1 truncate text-[1.4vh] font-medium">{tool.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     const handleClose = () => {
         hideEditor();
@@ -554,7 +689,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                         type="text"
                         value={search}
                         onChange={(event) => useSettings.setState({ search: event.target.value })}
-                        placeholder={isPage ? t('admins_search') : t('settings_search_script')}
+                        placeholder={itemsPage ? t('catalogue_search_items') : vehiclesPage ? t('catalogue_search_vehicles') : isPage ? t('admins_search') : t('settings_search_script')}
                         className="h-[3.6vh] w-full rounded-[0.4vh] border border-white/10 bg-white/[0.03] pl-[3.6vh] pr-[3vh] text-[1.5vh] text-white/90 transition-colors placeholder:text-white/30 focus:border-primary/50"
                     />
                     {query && (
@@ -610,15 +745,8 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                             </>
                         )}
 
-                        {canEdit && (
-                            <>
-                                <span className="mt-[1.6vh] px-[0.6vh] pb-[0.5vh] font-mono text-[1.05vh] uppercase tracking-[0.25em] text-white/25">{t('settings_access')}</span>
-                                {renderPageItem(ADMINS_PAGE, 'fa-user-shield', t('admins_title'), adminsPage)}
-                                {renderPageItem(LOGS_PAGE, 'fa-clock-rotate-left', t('logs_title'), logsPage)}
-                                {renderPageItem(BRIDGE_PAGE, 'fa-plug', t('bridge_title'), bridgePage)}
-                                {renderPageItem(MINIGAMES_PAGE, 'fa-gamepad', t('minigames_title'), minigamesPage)}
-                            </>
-                        )}
+                        <span className="mt-[1.6vh] px-[0.6vh] pb-[0.5vh] font-mono text-[1.05vh] uppercase tracking-[0.25em] text-white/25">{t('settings_access')}</span>
+                        {renderAdminGroup()}
                     </div>
 
                     {!isPage && (
@@ -634,6 +762,9 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                 {bridgePage && <SETTINGS_BRIDGE query={query} />}
                 {minigamesPage && <SETTINGS_MINIGAMES query={query} />}
 
+                {itemsPage && <SETTINGS_CATALOGUE kind="items" query={query} />}
+                {vehiclesPage && <SETTINGS_CATALOGUE kind="vehicles" query={query} />}
+
                 {!isPage && detailEntry && (
                     <DetailPane
                         resource={script.resource}
@@ -644,7 +775,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                 )}
 
                 {!isPage && !detailEntry && (
-                <div ref={containerRef} onScroll={onScroll} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto scroll-smooth px-[2vh] py-[1.6vh]">
+                <div ref={containerRef} onScroll={onScroll} onWheel={stopJump} onPointerDown={stopJump} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-[2vh] py-[1.6vh]">
                     {visibleGroups.map((group) => (
                         <section
                             key={group.id}

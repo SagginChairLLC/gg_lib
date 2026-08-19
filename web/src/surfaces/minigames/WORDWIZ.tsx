@@ -114,12 +114,12 @@ export default function WORDWIZ({ config, finish }: { config: MinigameConfig; fi
                 {word.split('').map((_, index) => (
                     <div key={index} className="flex flex-col items-center gap-[0.5vh]">
                         <span className={`flex h-[5.4vh] min-w-[5.4vh] items-center justify-center font-mono text-[2.6vh] font-black ${
-                            verdict === 'won' ? 'text-emerald-300 gg-glow-ok' : verdict === 'lost' ? 'text-red-300 gg-glow-err' : 'text-white'
+                            verdict === 'won' ? 'text-[#34d399] gg-glow-ok' : verdict === 'lost' ? 'text-[#f43f5e] gg-glow-err' : 'text-white'
                         }`}>
                             {typed[index] ?? ''}
                         </span>
                         <span className={`h-[0.4vh] w-[4.6vh] rounded-full ${
-                            typed[index] ? (verdict === 'lost' ? 'bg-red-400 gg-glow-err' : 'bg-primary gg-glow') : 'bg-white/15'
+                            typed[index] ? (verdict === 'lost' ? 'bg-[#f43f5e] gg-glow-err' : 'bg-primary gg-glow') : 'bg-white/15'
                         }`} />
                     </div>
                 ))}

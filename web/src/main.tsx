@@ -17,7 +17,14 @@ if (isEnvBrowser()) {
     root!.style.backgroundPosition = 'center';
     root!.style.backgroundImage = 'url(background.jpg)';
 
-    openSettings(buildMockSettingsScripts(), true, null);
+    // The browser preview stands in for an owner, so every tool is on and the
+    // access controls are all reachable.
+    openSettings(buildMockSettingsScripts(), true, null, {
+        CAN_MANAGE: true,
+        ROLE: 'god',
+        ROLE_LABEL: 'Owner',
+        TOOLS: ['logs', 'bridges', 'minigames', 'items', 'vehicles'],
+    });
     restoreDevSurface();
 }
 

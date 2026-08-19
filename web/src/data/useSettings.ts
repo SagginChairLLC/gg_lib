@@ -22,6 +22,10 @@ export type SettingField = {
     item_default?: Record<string, unknown>;
     min_items?: number;
     max_items?: number;
+    /** World-editor hints, carried through so a column can edit as an area or stand in a model. */
+    edit_mode?: string;
+    preview_model?: string;
+    min_gap?: number;
 };
 
 export type SettingEntry = {
@@ -46,6 +50,10 @@ export type SettingEntry = {
     preview_from?: Record<string, string>;
     live?: boolean;
     advanced?: boolean;
+    /** The value never leaves the server. Set it here, never read it back. */
+    server_only?: boolean;
+    /** Server-only entries report whether something is stored, not what. */
+    stored?: boolean;
     default: unknown;
     value: unknown;
 };
@@ -54,6 +62,9 @@ export const ADMINS_PAGE = '__gg_admins__';
 export const LOGS_PAGE = '__gg_logs__';
 export const BRIDGE_PAGE = '__gg_bridge__';
 export const MINIGAMES_PAGE = '__gg_minigames__';
+
+export const ITEMS_PAGE = '__gg_items__';
+export const VEHICLES_PAGE = '__gg_vehicles__';
 
 export const GENERIC_RESOURCE = 'gg_studio';
 export const THEME_PATH = 'theme.primary_color';
@@ -73,6 +84,8 @@ export type SettingsScript = {
     revision?: number;
     version?: string;
     generic?: boolean;
+    /** Whether the viewer's role lets them change this particular script. */
+    can_edit?: boolean;
     groups: SettingGroup[];
     entries: SettingEntry[];
 };
@@ -82,6 +95,11 @@ export type DraftValue = { kind: 'set'; value: unknown } | { kind: 'reset' };
 type SettingsState = {
     scripts: SettingsScript[];
     canEdit: boolean;
+    canManage: boolean;
+    role: string | null;
+    roleLabel: string | null;
+    /** null when the host never reported them, which is not the same as none. */
+    tools: string[] | null;
     activeResource: string | null;
     search: string;
     showAdvanced: boolean;
@@ -94,6 +112,10 @@ type SettingsState = {
 export const useSettings = create<SettingsState>(() => ({
     scripts: [],
     canEdit: false,
+    canManage: false,
+    role: null,
+    roleLabel: null,
+    tools: null,
     activeResource: null,
     search: '',
     showAdvanced: true,
@@ -129,6 +151,26 @@ export function effectiveValue(resource: string, entry: SettingEntry): unknown {
     return staged.kind === 'reset' ? entry.default : staged.value;
 }
 
+/** Whether a studio tool is available. A host that never reported its tool list
+ *  is an older gg_lib, and predates the restriction rather than imposing it. */
+export function canUseTool(id: string): boolean {
+    const tools = useSettings.getState().tools;
+
+    return tools === null || tools.includes(id);
+}
+
+/** Whether the viewer may change this script, not just settings in general. */
+export function canEditScript(resource: string): boolean {
+    const state = useSettings.getState();
+
+    if (!state.canEdit) return false;
+
+    const script = state.scripts.find((candidate) => candidate.resource === resource);
+
+    // An older host that never sent the flag means everyone who can edit, can.
+    return script?.can_edit !== false;
+}
+
 export function isModified(resource: string, entry: SettingEntry): boolean {
     return !settingsEqual(effectiveValue(resource, entry), entry.default);
 }
@@ -154,7 +196,9 @@ function writeLastScript(resource: string) {
     }
 }
 
-export function openSettings(scripts: SettingsScript[], canEdit: boolean, focus?: string | null) {
+export type AccessPayload = { CAN_MANAGE?: boolean; ROLE?: string; ROLE_LABEL?: string; TOOLS?: string[] };
+
+export function openSettings(scripts: SettingsScript[], canEdit: boolean, focus?: string | null, access?: AccessPayload) {
     const sorted = [...scripts].sort((a, b) => {
         const orderA = a.order ?? 100;
         const orderB = b.order ?? 100;
@@ -169,6 +213,10 @@ export function openSettings(scripts: SettingsScript[], canEdit: boolean, focus?
     useSettings.setState({
         scripts: sorted,
         canEdit,
+        canManage: access?.CAN_MANAGE === true,
+        role: access?.ROLE ?? null,
+        roleLabel: access?.ROLE_LABEL ?? null,
+        tools: access?.TOOLS ?? null,
         activeResource: focusTarget ?? rememberedTarget ?? sorted[0]?.resource ?? null,
         search: '',
         errors: {},
@@ -243,7 +291,7 @@ export function draftCount(resource: string): number {
     return Object.keys(useSettings.getState().draft[resource] ?? {}).length;
 }
 
-export function applyScripts(scripts: SettingsScript[], canEdit?: boolean) {
+export function applyScripts(scripts: SettingsScript[], canEdit?: boolean, access?: AccessPayload) {
     useSettings.setState((state) => {
         const sorted = [...scripts].sort((a, b) => {
             const orderA = a.order ?? 100;
@@ -255,6 +303,10 @@ export function applyScripts(scripts: SettingsScript[], canEdit?: boolean) {
         return {
             scripts: sorted,
             canEdit: canEdit ?? state.canEdit,
+            canManage: access?.CAN_MANAGE ?? state.canManage,
+            role: access?.ROLE ?? state.role,
+            roleLabel: access?.ROLE_LABEL ?? state.roleLabel,
+            tools: access?.TOOLS ?? state.tools,
             activeResource: state.activeResource && sorted.some((script) => script.resource === state.activeResource) ? state.activeResource : null,
         };
     });
@@ -273,6 +325,15 @@ export function applyDraftLocally(resource: string) {
                 entries: script.entries.map((entry) => {
                     const edit = staged[entry.path];
                     if (!edit) return entry;
+
+                    // A server-only entry holds no value here and must not
+                    // start holding one. Only whether something is stored
+                    // changes, and an empty write is what clears it.
+                    if (entry.server_only) {
+                        const cleared = edit.kind === 'reset' || edit.value === '' || edit.value == null;
+
+                        return { ...entry, stored: !cleared };
+                    }
 
                     const value = edit.kind === 'reset' ? JSON.parse(JSON.stringify(entry.default ?? null)) : edit.value;
 

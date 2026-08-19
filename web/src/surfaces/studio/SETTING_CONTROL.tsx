@@ -25,6 +25,16 @@ export type ControlDef = {
     max_items?: number;
     nullable?: boolean;
     preview_from?: Record<string, string>;
+    /** Model the world editor stands in for each point, when no preview_from resolves. */
+    preview_model?: string;
+    /** Closest two points may sit; the world editor refuses anything tighter. */
+    min_gap?: number;
+    /** 'polygon' edits the points as an area rather than as separate placements. */
+    edit_mode?: string;
+    /** The value never leaves the server: write-only, never rendered. */
+    server_only?: boolean;
+    /** Whether the server holds a value, which is all it will say about one. */
+    stored?: boolean;
 };
 
 type ControlProps = {
@@ -283,7 +293,7 @@ export type RowAction = {
     run: () => void;
 };
 
-function RowActions({ actions, disabled }: { actions: RowAction[]; disabled?: boolean }) {
+export function RowActions({ actions, disabled }: { actions: RowAction[]; disabled?: boolean }) {
     const [open, setOpen] = useState(false);
     const [upward, setUpward] = useState(false);
     const holder = useRef<HTMLDivElement | null>(null);
@@ -930,7 +940,11 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
     const pageCount = Math.max(1, Math.ceil(indices.length / ROWS_PER_PAGE));
     const current = Math.min(page, pageCount - 1);
     const paged = indices.slice(current * ROWS_PER_PAGE, current * ROWS_PER_PAGE + ROWS_PER_PAGE);
-    const paginated = indices.length > ROWS_PER_PAGE;
+    // Gated on the whole list, never on what the filter left behind: a search
+    // that narrows past a page used to unmount its own search box. An active
+    // filter holds the bar open too, so rows can never end up hidden with no
+    // visible way to clear it.
+    const toolbar = rows.length > ROWS_PER_PAGE || needle !== '';
 
     const narrowCount = (itemFields ?? []).filter((field) => !isWideType(field.type)).length;
     const columns = Math.min(Math.max(narrowCount, 1), 4);
@@ -973,6 +987,26 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
                 onChange([...rows, response.COORDS]);
                 focusNewRow();
             }
+        } finally {
+            setPlacing(false);
+        }
+    };
+
+    // The whole set at once, from a free camera. Spacing between points is what
+    // is actually being judged, so they have to be seen together.
+    const editAllPoints = async () => {
+        if (disabled || placing) return;
+        setPlacing(true);
+
+        try {
+            const response = await fetchNui<{ ok: boolean; POINTS?: Coords[] }>('settings_edit_points', {
+                current: rows,
+                preview: resolvePreview(def.preview_from) ?? { model: def.preview_model },
+                min_gap: def.min_gap,
+                mode: def.edit_mode,
+            });
+
+            if (response?.ok && Array.isArray(response.POINTS)) onChange(response.POINTS);
         } finally {
             setPlacing(false);
         }
@@ -1024,6 +1058,56 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
         </div>
     );
 
+    // A zone is drawn, never typed. Listing its corners as editable x/y/z rows
+    // would be noise nobody acts on, so the whole control is the one button
+    // that takes you out there, plus what is already drawn.
+    if (def.edit_mode === 'polygon') {
+        const corners = rows.length;
+        const closed = corners >= 3;
+
+        return (
+            <div className="flex w-full flex-col gap-[0.8vh]">
+                <div className="flex items-center gap-[1.1vh] rounded-[0.6vh] border border-white/10 bg-neutral-950/40 px-[1.2vh] py-[1vh]">
+                    <i className={`fas fa-draw-polygon text-[1.8vh] ${closed ? 'text-primary' : 'text-white/25'}`} />
+
+                    <div className="min-w-0 flex-1">
+                        <p className={`truncate text-[1.5vh] font-semibold ${closed ? 'text-white/90' : 'text-white/40'}`}>
+                            {closed ? `${corners} ${t('settings_zone_corners')}` : t('settings_zone_empty')}
+                        </p>
+                        <p className="mt-[0.2vh] truncate text-[1.2vh] text-white/30">
+                            {closed ? t('settings_zone_ready') : t('settings_zone_hint')}
+                        </p>
+                    </div>
+
+                    {!disabled && corners > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => onChange([])}
+                            title={t('settings_zone_clear')}
+                            className="flex h-[3.2vh] w-[3.2vh] flex-shrink-0 items-center justify-center rounded-[0.5vh] border border-white/10 text-[1.3vh] text-white/40 transition-colors hover:border-primary/40 hover:text-primary"
+                        >
+                            <i className="fas fa-trash" />
+                        </button>
+                    )}
+                </div>
+
+                {!disabled && (
+                    <button
+                        type="button"
+                        onClick={editAllPoints}
+                        disabled={placing}
+                        className={`flex h-[3.6vh] w-full items-center justify-center gap-[0.8vh] rounded-[0.6vh] border text-[1.4vh] font-semibold transition-colors ${
+                            placing ? 'cursor-not-allowed border-white/5 text-white/20' : 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/20'
+                        }`}
+                    >
+                        <i className={`fas ${placing ? 'fa-crosshairs fa-spin' : 'fa-video'} text-[1.2vh]`} />
+                        {placing ? t('settings_placing') : corners > 0 ? t('settings_zone_edit') : t('settings_zone_draw')}
+                    </button>
+                )}
+            </div>
+        );
+    }
+
     if (nested && openRow !== null && rows[openRow] !== undefined) {
         return (
             <div className="flex w-full flex-col gap-[1vh]">
@@ -1051,7 +1135,7 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
 
     return (
         <div className="flex w-full flex-col gap-[0.8vh]">
-            {paginated && (
+            {toolbar && (
                 <div className="flex items-center gap-[1vh]">
                     {filterable ? (
                         <div className="relative min-w-0 flex-1">
@@ -1100,7 +1184,7 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
                 </div>
             )}
 
-            {paginated && indices.length === 0 && (
+            {toolbar && indices.length === 0 && (
                 <div className="py-[2vh] text-center text-[1.3vh] text-white/30">{t('settings_no_results')}</div>
             )}
 
@@ -1238,6 +1322,21 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
                             {placing ? t('settings_placing') : t('settings_add_point')}
                         </button>
 
+                        {/* Spacing between points is what is actually being
+                            judged, so the whole set is edited together from a
+                            free camera rather than one point at a time. */}
+                        <button
+                            type="button"
+                            onClick={editAllPoints}
+                            disabled={placing}
+                            className={`flex h-[3.4vh] flex-1 items-center justify-center gap-[0.8vh] rounded-[0.6vh] border text-[1.4vh] font-semibold transition-colors ${
+                                placing ? 'cursor-not-allowed border-white/5 text-white/20' : 'border-white/15 text-white/60 hover:border-primary/40 hover:text-primary'
+                            }`}
+                        >
+                            <i className="fas fa-video text-[1.2vh]" />
+                            {t('settings_edit_all_points')}
+                        </button>
+
                         <button
                             type="button"
                             onClick={() => setImportText(importText === null ? '' : null)}
@@ -1270,7 +1369,64 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
 // MARK: Dispatch
 //--------------------------------------------------
 
+/**
+ * A value the server keeps to itself — an upload key, a token. The stored one
+ * is never sent here, so there is nothing to render and nothing to prefill:
+ * this writes a replacement or clears what is there. What the admin types is
+ * shown back to them, masked, because they are the one who typed it.
+ */
+function SecretControl({ def, value, onChange, disabled }: ControlProps) {
+    const [reveal, setReveal] = useState(false);
+
+    // Untouched, the draft holds nothing. A staged empty string is a deliberate
+    // clear and has to stay distinguishable from that.
+    const typed = typeof value === 'string' ? value : '';
+    const pending = value !== undefined && value !== null;
+
+    return (
+        <div className="flex w-full items-center gap-[0.6vh]">
+            <div className="relative min-w-0 flex-1">
+                <input
+                    type={reveal ? 'text' : 'password'}
+                    value={typed}
+                    disabled={disabled}
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder={def.stored ? t('settings_secret_stored') : t('settings_secret_empty')}
+                    onChange={(event) => onChange(event.target.value)}
+                    className={`${INPUT} pr-[3.4vh] font-mono disabled:opacity-40`}
+                />
+
+                <button
+                    type="button"
+                    tabIndex={-1}
+                    title={reveal ? t('settings_secret_hide') : t('settings_secret_show')}
+                    onClick={() => setReveal((current) => !current)}
+                    className="absolute right-[0.4vh] top-1/2 flex h-[2.8vh] w-[2.8vh] -translate-y-1/2 items-center justify-center rounded-[0.4vh] text-[1.3vh] text-white/35 transition-colors hover:text-white/80"
+                >
+                    <i className={`fas ${reveal ? 'fa-eye-slash' : 'fa-eye'}`} />
+                </button>
+            </div>
+
+            {!disabled && def.stored && !pending && (
+                <button
+                    type="button"
+                    title={t('settings_secret_clear')}
+                    onClick={() => onChange('')}
+                    className="flex h-[3.6vh] w-[3.6vh] flex-shrink-0 items-center justify-center rounded-[0.6vh] border border-white/10 text-[1.3vh] text-white/40 transition-colors hover:border-red-400/50 hover:text-red-400"
+                >
+                    <i className="fas fa-xmark" />
+                </button>
+            )}
+        </div>
+    );
+}
+
 export default function SettingControl(props: ControlProps) {
+    // Checked ahead of the type: a server-only setting has no value to hand
+    // any of the controls below.
+    if (props.def.server_only) return <SecretControl {...props} />;
+
     switch (props.def.type ?? 'string') {
         case 'boolean':
             return <BooleanControl {...props} />;

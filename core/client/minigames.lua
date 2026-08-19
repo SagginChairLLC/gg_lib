@@ -11,13 +11,18 @@ local RESOURCE = GetCurrentResourceName()
 
 -- `cursor` frees the mouse for the games played by clicking rather than typing.
 local GAMES = {
-    skillcheck = { cursor = false, defaults = { rounds = 3, zone = 40, speed = 220, key = "E" } },
-    keymash    = { cursor = false, defaults = { time = 6, decay = 22, gain = 7, key = "E" } },
-    timing     = { cursor = false, defaults = { rounds = 3, zone = 16, speed = 0.9, key = "E" } },
+    skillcheck = { cursor = false, defaults = { rounds = 3, zone = 40, speed = 220, key = "" } },
+    keymash    = { cursor = false, defaults = { time = 6, decay = 16, gain = 6, key = "" } },
+    timing     = { cursor = false, defaults = { rounds = 3, zone = 16, speed = 0.7, key = "" } },
     sequence   = { cursor = false, defaults = { length = 6, time = 5 } },
     memory     = { cursor = true,  defaults = { size = 4, flashes = 5, time = 8 } },
     wordwiz    = { cursor = false, defaults = { length = 6, time = 10 } },
     connect    = { cursor = true,  defaults = { pairs = 4, time = 45 } },
+    hold       = { cursor = false, defaults = { rounds = 3, zone = 18, speed = 55, time = 8, key = "" } },
+    reflex     = { cursor = false, defaults = { rounds = 4, window = 1.3, key = "" } },
+    breach     = { cursor = true,  defaults = { size = 5, length = 4, time = 30 } },
+    lockpick   = { cursor = false, defaults = { rounds = 3, zone = 34, speed = 150, time = 25, key = "" } },
+    codecrack  = { cursor = false, defaults = { length = 4, rounds = 5, time = 45 } },
 }
 
 -- A game that never answers -- a dead page, a broken build -- must not strand
@@ -50,10 +55,18 @@ local function resolveConfig(name, opts)
         for key, value in pairs(opts) do merged[key] = value end
     end
 
-    -- The page takes a key list; the config keeps a single key because that is
-    -- what an owner actually sets. A caller passing `keys` outranks both.
-    if merged.keys == nil and type(merged.key) == "string" and merged.key ~= "" then
-        merged.keys = { merged.key }
+    -- The page takes a key list; the config keeps a string because that is what
+    -- an owner actually types. "E" is one key, "EFG" is a pool of three to draw
+    -- from, and empty leaves the page its own. A caller passing `keys` outranks
+    -- both. Either way the page draws once, and that key stands for the game.
+    if merged.keys == nil and type(merged.key) == "string" then
+        local pool = {}
+
+        for character in merged.key:upper():gmatch("[A-Z0-9]") do
+            pool[#pool + 1] = character
+        end
+
+        if #pool > 0 then merged.keys = pool end
     end
 
     merged.key = nil

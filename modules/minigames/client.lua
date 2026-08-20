@@ -3,25 +3,30 @@ gg.minigames = gg.minigames or {}
 --- Run a minigame and get pass/fail back. Blocks the calling thread until the
 --- player finishes, exactly like a progress bar.
 ---
---- opts overrides the server's stored defaults for this one run.
+--- Every game takes its tuning per call; nothing is stored. Games that ask for
+--- a key take `keys`, a table asked for one per round:
+---
+---   gg.minigames.skillcheck({ rounds = 3, keys = { "E", "R", "T" } })
+---
+--- Leave it out and they ask for E.
 function gg.minigames.play(name, opts)
     return exports.gg_lib:ggMinigame(name, opts) == true
 end
 
 --- A needle sweeps a ring; hit the key inside the marked arc.
---- opts: rounds, zone (degrees), speed (degrees/s), key or keys
+--- opts: rounds, zone (degrees), speed (degrees/s), keys (one per round)
 function gg.minigames.skillcheck(opts)
     return gg.minigames.play("skillcheck", opts)
 end
 
 --- Mash the key to fill the bar before the clock empties.
---- opts: time (s), decay (%/s), gain (% per press), key
+--- opts: time (s), decay (%/s), gain (% per press), keys (rotated as you mash)
 function gg.minigames.keymash(opts)
     return gg.minigames.play("keymash", opts)
 end
 
 --- Stop the sweeping marker inside the zone.
---- opts: rounds, zone (track %), speed (sweeps/s), key
+--- opts: rounds, zone (track %), speed (sweeps/s), keys (one per round)
 function gg.minigames.timing(opts)
     return gg.minigames.play("timing", opts)
 end
@@ -51,13 +56,13 @@ function gg.minigames.connect(opts)
 end
 
 --- Hold the key to raise the pressure, release inside the band.
---- opts: rounds, zone (band %), speed (%/s), time (s), key
+--- opts: rounds, zone (band %), speed (%/s), time (s), keys (one per round)
 function gg.minigames.hold(opts)
     return gg.minigames.play("hold", opts)
 end
 
 --- Hit each key before the ring closes on it.
---- opts: rounds (keys), window (s per key), key
+--- opts: rounds (keys), window (s per key), keys
 function gg.minigames.reflex(opts)
     return gg.minigames.play("reflex", opts)
 end
@@ -69,7 +74,7 @@ function gg.minigames.breach(opts)
 end
 
 --- Turn the pick with A and D, set each pin where the tension peaks.
---- opts: rounds (pins), zone (degrees), speed (degrees/s), time (s), key
+--- opts: rounds (pins), zone (degrees), speed (degrees/s), time (s), keys
 function gg.minigames.lockpick(opts)
     return gg.minigames.play("lockpick", opts)
 end

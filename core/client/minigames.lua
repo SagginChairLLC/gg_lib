@@ -4,24 +4,25 @@
 -- Runs the minigame set in gg_lib's own page. A caller asks for a game and
 -- gets a pass/fail back; the drawing, input and theming all live here.
 --
--- Config resolution, weakest first: the built-in defaults, then the server
--- owner's stored defaults, then whatever the calling script passes.
+-- The tuning below is the whole of it. These are not settings an owner
+-- edits -- a script that wants a harder check passes one, and the studio
+-- page is there to try them and copy the call.
 
 local RESOURCE = GetCurrentResourceName()
 
 -- `cursor` frees the mouse for the games played by clicking rather than typing.
 local GAMES = {
-    skillcheck = { cursor = false, defaults = { rounds = 3, zone = 40, speed = 220, key = "" } },
-    keymash    = { cursor = false, defaults = { time = 6, decay = 16, gain = 6, key = "" } },
-    timing     = { cursor = false, defaults = { rounds = 3, zone = 16, speed = 0.7, key = "" } },
+    skillcheck = { cursor = false, defaults = { rounds = 3, zone = 40, speed = 220 } },
+    keymash    = { cursor = false, defaults = { time = 6, decay = 16, gain = 6 } },
+    timing     = { cursor = false, defaults = { rounds = 3, zone = 16, speed = 0.7 } },
     sequence   = { cursor = false, defaults = { length = 6, time = 5 } },
     memory     = { cursor = true,  defaults = { size = 4, flashes = 5, time = 8 } },
     wordwiz    = { cursor = false, defaults = { length = 6, time = 10 } },
     connect    = { cursor = true,  defaults = { pairs = 4, time = 45 } },
-    hold       = { cursor = false, defaults = { rounds = 3, zone = 18, speed = 55, time = 8, key = "" } },
-    reflex     = { cursor = false, defaults = { rounds = 4, window = 1.3, key = "" } },
+    hold       = { cursor = false, defaults = { rounds = 3, zone = 18, speed = 55, time = 8 } },
+    reflex     = { cursor = false, defaults = { rounds = 4, window = 1.3 } },
     breach     = { cursor = true,  defaults = { size = 5, length = 4, time = 30 } },
-    lockpick   = { cursor = false, defaults = { rounds = 3, zone = 34, speed = 150, time = 25, key = "" } },
+    lockpick   = { cursor = false, defaults = { rounds = 3, zone = 34, speed = 150, time = 25 } },
     codecrack  = { cursor = false, defaults = { length = 4, rounds = 5, time = 45 } },
 }
 
@@ -35,30 +36,18 @@ local active = nil
 -- MARK: Config
 --------------------------------------------------
 
-local function storedDefaults(name)
-    local ok, stored = pcall(lib.callback.await, "gg_lib:minigames:defaults", false, name)
-
-    return ok and type(stored) == "table" and stored or nil
-end
-
 local function resolveConfig(name, opts)
     local merged = {}
 
     for key, value in pairs(GAMES[name].defaults) do merged[key] = value end
 
-    local stored = storedDefaults(name)
-    if stored then
-        for key, value in pairs(stored) do merged[key] = value end
-    end
-
     if type(opts) == "table" then
         for key, value in pairs(opts) do merged[key] = value end
     end
 
-    -- The page takes a key list; the config keeps a string because that is what
-    -- an owner actually types. "E" is one key, "EFG" is a pool of three to draw
-    -- from, and empty leaves the page its own. A caller passing `keys` outranks
-    -- both. Either way the page draws once, and that key stands for the game.
+    -- `keys` is the real form: a table asked for one per round. A plain
+    -- string is accepted too, so key = "ERT" reads the same as
+    -- keys = { "E", "R", "T" }. Neither given means E.
     if merged.keys == nil and type(merged.key) == "string" then
         local pool = {}
 

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
-import { FloatShell, Keycap, RoundBar, keyPool, randomKey, useGameKeys, useRafLoop, type Verdict } from './parts';
+import { FloatShell, Keycap, RoundBar, useGameKeys, useKeySequence, usePainted, useRafLoop, type Verdict } from './parts';
 
 /**
  * A needle sweeps a ring; press the key while it crosses the marked arc.
@@ -33,20 +33,22 @@ function arcPath(from: number, to: number, radius: number) {
 export default function SKILLCHECK({ config, finish }: { config: MinigameConfig; finish: (success: boolean) => void }) {
     const rounds = Math.max(1, config.rounds ?? 3);
     const zone = Math.max(8, Math.min(90, config.zone ?? 40));
-    const keys = keyPool(config.keys);
+    const keyFor = useKeySequence(config.keys);
 
     const angle = useRef(0);
     const speed = useRef(Math.max(60, config.speed ?? 220));
     const phase = useRef<'play' | 'over'>('play');
 
-    const makeRound = (from: number): Round => ({
+    const painted = usePainted(angle.current);
+
+    const makeRound = (from: number, round: number): Round => ({
         start: from + LEAD + Math.random() * 140,
         end: 0,
-        key: randomKey(keys),
+        key: keyFor(round),
     });
 
     const [round, setRound] = useState<Round>(() => {
-        const first = makeRound(0);
+        const first = makeRound(0, 0);
         return { ...first, end: first.start + zone };
     });
     const [cleared, setCleared] = useState(0);
@@ -76,7 +78,11 @@ export default function SKILLCHECK({ config, finish }: { config: MinigameConfig;
         if (key === 'ESCAPE') return end(false);
         if (key !== round.key) return end(false);
 
-        const inside = angle.current >= round.start && angle.current <= round.end;
+        // Judged on the needle the player can see, not the one the frame
+        // loop has already moved on to.
+        const at = painted.current;
+        const inside = at >= round.start && at <= round.end;
+
         if (!inside) return end(false);
 
         const done = cleared + 1;
@@ -86,7 +92,7 @@ export default function SKILLCHECK({ config, finish }: { config: MinigameConfig;
         setCleared(done);
         speed.current *= 1.07;
 
-        const next = makeRound(angle.current);
+        const next = makeRound(angle.current, done);
         setRound({ ...next, end: next.start + zone * Math.max(0.55, 1 - done * 0.12) });
     });
 

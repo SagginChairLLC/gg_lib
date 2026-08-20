@@ -15,6 +15,22 @@ import POPUP_BASE from '@/surfaces/popup/POPUP_BASE';
 import TOOL_HUD from '@/surfaces/tool/TOOL_HUD';
 import TOOL_GIZMO from '@/surfaces/tool/TOOL_GIZMO';
 import MINIGAME_HOST from '@/surfaces/minigames/MINIGAME_HOST';
+import PARTICLE_VIEWER from '@/surfaces/dev/PARTICLE_VIEWER';
+import ATTACH_EDITOR from '@/surfaces/dev/ATTACH_EDITOR';
+import ATTACH_GIZMO from '@/surfaces/dev/ATTACH_GIZMO';
+import { applyParticleLook, applyParticleOpen, applyParticleState, exitViewer, freeLook as freeParticleLook, useParticles } from '@/data/useParticles';
+import {
+    applyAttachCamera,
+    applyAttachLook,
+    applyAttachOpen,
+    applyAttachProp,
+    applyAttachState,
+    applyAttachTarget,
+    applyAttachValues,
+    exitEditor,
+    freeLook as freeAttachLook,
+    useAttach,
+} from '@/data/useAttach';
 import { finishMinigame, startMinigame, useMinigames, type MinigameConfig, type MinigameName } from '@/data/useMinigames';
 
 type SettingsOpenPayload = {
@@ -68,6 +84,26 @@ export default function App() {
         finishMinigame(false);
     });
 
+    useNuiEvent<Parameters<typeof applyParticleOpen>[0]>('particle_open', applyParticleOpen);
+
+    useNuiEvent<Parameters<typeof applyParticleState>[0]>('particle_state', applyParticleState);
+
+    useNuiEvent<Parameters<typeof applyParticleLook>[0]>('particle_look', applyParticleLook);
+
+    useNuiEvent<Parameters<typeof applyAttachOpen>[0]>('attach_open', applyAttachOpen);
+
+    useNuiEvent<Parameters<typeof applyAttachLook>[0]>('attach_look', applyAttachLook);
+
+    useNuiEvent<Parameters<typeof applyAttachState>[0]>('attach_state', applyAttachState);
+
+    useNuiEvent<Parameters<typeof applyAttachProp>[0]>('attach_prop', applyAttachProp);
+
+    useNuiEvent<Parameters<typeof applyAttachValues>[0]>('attach_values', applyAttachValues);
+
+    useNuiEvent<Parameters<typeof applyAttachTarget>[0]>('attach_target', applyAttachTarget);
+
+    useNuiEvent<Parameters<typeof applyAttachCamera>[0]>('attach_camera', applyAttachCamera);
+
     useNuiEvent<Parameters<typeof applyToolState>[0]>('gg_tool', applyToolState);
 
     useNuiEvent<Parameters<typeof applyGizmoState>[0]>('gg_gizmo', applyGizmoState);
@@ -78,7 +114,37 @@ export default function App() {
 
     useEffect(() => {
         const handleKeyPress = (event: KeyboardEvent) => {
+            // Alt hands the mouse back to the game. The page only hears it
+            // while it has focus, which is exactly when the client cannot.
+            if (event.key === 'Alt' && !event.repeat) {
+                if (useParticles.getState().open) {
+                    event.preventDefault();
+                    freeParticleLook(true);
+                    return;
+                }
+
+                if (useAttach.getState().open) {
+                    event.preventDefault();
+                    freeAttachLook(true);
+                    return;
+                }
+            }
+
             if (event.key !== 'Escape') return;
+
+            // A dev tool owns the screen while it is up, and closing it is
+            // what Escape should do there.
+            if (useParticles.getState().open) {
+                event.preventDefault();
+                exitViewer();
+                return;
+            }
+
+            if (useAttach.getState().open) {
+                event.preventDefault();
+                exitEditor();
+                return;
+            }
 
             // A running game owns the keyboard; its own handler reports the
             // fail and this one must not also close the editor behind it.
@@ -132,6 +198,9 @@ export default function App() {
             </AnimatePresence>
             <AnimatePresence>{popupEnabled && <POPUP_BASE key="popup_base" />}</AnimatePresence>
             <MINIGAME_HOST />
+            <PARTICLE_VIEWER />
+            <ATTACH_GIZMO />
+            <ATTACH_EDITOR />
             <TOOL_GIZMO />
             <AnimatePresence>{toolActive && <TOOL_HUD key="tool_hud" />}</AnimatePresence>
             {import.meta.env.DEV && isEnvBrowser() && <DevSurfaceSwitcher />}

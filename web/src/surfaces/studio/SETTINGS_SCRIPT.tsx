@@ -8,6 +8,8 @@ import {
     LOGS_PAGE,
     BRIDGE_PAGE,
     MINIGAMES_PAGE,
+    WAYPOINTS_PAGE,
+    DEV_PAGE,
     ITEMS_PAGE,
     VEHICLES_PAGE,
     canUseTool,
@@ -31,6 +33,8 @@ import SETTINGS_RESET from './SETTINGS_RESET';
 import SETTINGS_LOGS from './SETTINGS_LOGS';
 import SETTINGS_BRIDGE from './SETTINGS_BRIDGE';
 import SETTINGS_MINIGAMES from './SETTINGS_MINIGAMES';
+import SETTINGS_WAYPOINTS from './SETTINGS_WAYPOINTS';
+import SETTINGS_DEV from './SETTINGS_DEV';
 import SETTINGS_CATALOGUE from './SETTINGS_CATALOGUE';
 import SETTINGS_PICKER from './SETTINGS_PICKER';
 import { usePicker } from '@/data/usePicker';
@@ -320,7 +324,6 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
     const [refreshing, setRefreshing] = useState(false);
     const [adminOpen, setAdminOpen] = useState(false);
 
-    const allowedTools = useSettings((state) => state.tools);
 
 
 
@@ -338,9 +341,11 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
     const logsPage = activeResource === LOGS_PAGE;
     const bridgePage = activeResource === BRIDGE_PAGE;
     const minigamesPage = activeResource === MINIGAMES_PAGE;
+    const waypointsPage = activeResource === WAYPOINTS_PAGE;
+    const devPage = activeResource === DEV_PAGE;
     const itemsPage = activeResource === ITEMS_PAGE;
     const vehiclesPage = activeResource === VEHICLES_PAGE;
-    const isPage = adminsPage || logsPage || bridgePage || minigamesPage || itemsPage || vehiclesPage;
+    const isPage = adminsPage || logsPage || bridgePage || minigamesPage || waypointsPage || devPage || itemsPage || vehiclesPage;
 
     const jobScripts = scripts.filter((candidate) => !candidate.generic);
     const genericScripts = scripts.filter((candidate) => candidate.generic);
@@ -554,6 +559,8 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
             { page: LOGS_PAGE, icon: 'fa-clock-rotate-left', label: t('logs_title'), current: logsPage, need: 'logs' },
             { page: BRIDGE_PAGE, icon: 'fa-plug', label: t('bridge_title'), current: bridgePage, need: 'bridges' },
             { page: MINIGAMES_PAGE, icon: 'fa-gamepad', label: t('minigames_title'), current: minigamesPage, need: 'minigames' },
+            { page: WAYPOINTS_PAGE, icon: 'fa-location-dot', label: t('waypoints_title'), current: waypointsPage, need: 'waypoints' },
+            { page: DEV_PAGE, icon: 'fa-screwdriver-wrench', label: t('dev_title'), current: devPage, need: 'devtools' },
             { page: ITEMS_PAGE, icon: 'fa-boxes-stacked', label: t('catalogue_items'), current: itemsPage, need: 'items' },
             { page: VEHICLES_PAGE, icon: 'fa-car', label: t('catalogue_vehicles'), current: vehiclesPage, need: 'vehicles' },
         ].filter((tool) => tool.need === null || canUseTool(tool.need));
@@ -757,10 +764,12 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                     )}
                 </div>
 
-                {adminsPage && <SETTINGS_ADMINS canEdit={canEdit} query={query} />}
+                {adminsPage && <SETTINGS_ADMINS query={query} />}
                 {logsPage && <SETTINGS_LOGS query={query} />}
                 {bridgePage && <SETTINGS_BRIDGE query={query} />}
                 {minigamesPage && <SETTINGS_MINIGAMES query={query} />}
+                {waypointsPage && <SETTINGS_WAYPOINTS query={query} />}
+                {devPage && <SETTINGS_DEV query={query} />}
 
                 {itemsPage && <SETTINGS_CATALOGUE kind="items" query={query} />}
                 {vehiclesPage && <SETTINGS_CATALOGUE kind="vehicles" query={query} />}

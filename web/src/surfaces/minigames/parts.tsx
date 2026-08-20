@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * The design system every game is assembled from. Two presentations share it:
@@ -53,6 +53,42 @@ export function keyPool(keys?: string[]): string[] {
     const named = (keys ?? []).map(normaliseKey).filter((key) => key !== '');
 
     return named.length > 0 ? named : KEY_POOL;
+}
+
+/**
+ * The key each round asks for.
+ *
+ * One key means that key every round. Several means a sequence: the first
+ * round asks for the first, the second for the second, wrapping if there are
+ * more rounds than keys. That is what a list of keys means to anyone who has
+ * met one before.
+ *
+ * Nothing given means E. A script that wants otherwise says so.
+ */
+export function useKeySequence(keys?: string[]) {
+    const [sequence] = useState(() => {
+        const named = (keys ?? []).map(normaliseKey).filter((key) => key !== '');
+
+        return named.length > 0 ? named : ['E'];
+    });
+
+    return (round: number) => sequence[Math.max(0, round) % sequence.length];
+}
+
+/**
+ * The value the player is actually looking at.
+ *
+ * These games move in the frame loop and paint on the render after it, so the
+ * number the loop holds is always a step ahead of the screen. Judging a press
+ * against it marks people wrong for what they were never shown. Assigned
+ * during render, so it holds exactly what is on the glass.
+ */
+export function usePainted(value: number) {
+    const painted = useRef(value);
+
+    painted.current = value;
+
+    return painted;
 }
 
 export function randomKey(pool: string[]): string {

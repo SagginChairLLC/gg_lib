@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
-import { FloatShell, Keycap, RoundBar, keyPool, randomKey, useGameKeys, useRafLoop, type Verdict } from './parts';
+import { FloatShell, Keycap, RoundBar, useGameKeys, useKeySequence, usePainted, useRafLoop, type Verdict } from './parts';
 
 /**
  * A marker sweeps the bar once; stop it inside the glowing zone. Reaching the
@@ -13,11 +13,14 @@ type Round = { zoneAt: number; zoneWidth: number };
 export default function TIMING({ config, finish }: { config: MinigameConfig; finish: (success: boolean) => void }) {
     const rounds = Math.max(1, config.rounds ?? 3);
     const baseZone = Math.max(4, Math.min(40, config.zone ?? 16));
-    const [key] = useState(() => randomKey(keyPool(config.keys)));
+    const keyFor = useKeySequence(config.keys);
 
     const position = useRef(0);
     const speed = useRef(Math.max(0.3, config.speed ?? 0.7));
     const phase = useRef<'play' | 'over'>('play');
+
+    const shown = Math.min(position.current, 100);
+    const painted = usePainted(shown);
 
     const makeRound = (width: number): Round => ({
         // Never flush against either end: an instant-press or last-frame zone is
@@ -52,9 +55,13 @@ export default function TIMING({ config, finish }: { config: MinigameConfig; fin
     useGameKeys((incoming) => {
         if (phase.current !== 'play') return;
         if (incoming === 'ESCAPE') return end(false);
-        if (incoming !== key) return end(false);
+        if (incoming !== keyFor(cleared)) return end(false);
 
-        const inside = position.current >= round.zoneAt && position.current <= round.zoneAt + round.zoneWidth;
+        // Judged on the marker the player can see, not the one the frame
+        // loop has already moved on to.
+        const at = painted.current;
+        const inside = at >= round.zoneAt && at <= round.zoneAt + round.zoneWidth;
+
         if (!inside) return end(false);
 
         const done = cleared + 1;
@@ -66,6 +73,8 @@ export default function TIMING({ config, finish }: { config: MinigameConfig; fin
         speed.current *= 1.08;
         setRound(makeRound(Math.max(4, baseZone * (1 - done * 0.18))));
     });
+
+    const key = keyFor(cleared);
 
     const zoneClass =
         verdict === 'lost'
@@ -84,7 +93,7 @@ export default function TIMING({ config, finish }: { config: MinigameConfig; fin
 
                 <div
                     className={`absolute top-[-0.6vh] h-[4.6vh] w-[0.5vh] rounded-full ${verdict === 'lost' ? 'bg-[#f43f5e] gg-glow-err' : 'bg-white gg-glow'}`}
-                    style={{ left: `calc(${Math.min(position.current, 100)}% - 0.25vh)` }}
+                    style={{ left: `calc(${shown}% - 0.25vh)` }}
                 />
             </div>
 

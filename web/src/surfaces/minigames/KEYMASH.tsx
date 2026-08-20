@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
-import { FloatShell, keyPool, randomKey, useGameKeys, useRafLoop, type Verdict } from './parts';
+import { FloatShell, useGameKeys, useKeySequence, useRafLoop, type Verdict } from './parts';
 
 /**
  * Mash the key until the glow fills the ring. The fill is a circle growing
@@ -11,7 +11,11 @@ export default function KEYMASH({ config, finish }: { config: MinigameConfig; fi
     const time = Math.max(2, config.time ?? 6);
     const decay = Math.max(0, config.decay ?? 16);
     const gain = Math.max(1, config.gain ?? 6);
-    const [key] = useState(() => randomKey(keyPool(config.keys)));
+    // A list here is a rotation rather than a sequence of rounds: the key
+    // moves on with every press, so mashing a list means alternating between
+    // them. One key on its own never changes.
+    const keyFor = useKeySequence(config.keys);
+    const presses = useRef(0);
 
     const value = useRef(18);
     const left = useRef(time);
@@ -43,14 +47,17 @@ export default function KEYMASH({ config, finish }: { config: MinigameConfig; fi
     useGameKeys((incoming) => {
         if (phase.current !== 'play') return;
         if (incoming === 'ESCAPE') return end(false);
-        if (incoming !== key) return;
+        if (incoming !== keyFor(presses.current)) return;
 
+        presses.current += 1;
         value.current = Math.min(100, value.current + gain);
         setPressed(true);
         setTimeout(() => setPressed(false), 60);
 
         if (value.current >= 100) end(true);
     });
+
+    const key = keyFor(presses.current);
 
     // Ring geometry: r=44 in a 100 viewbox; the timer drains along it.
     const CIRCUMFERENCE = 2 * Math.PI * 44;

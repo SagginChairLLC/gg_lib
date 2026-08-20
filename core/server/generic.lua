@@ -459,169 +459,35 @@ define("fallback.ped", {
 })
 
 --------------------------------------------------
--- MARK: Minigames
+-- MARK: Waypoints
 --------------------------------------------------
--- The default tuning for each game in the set. A script can override any of
--- these per call; what is set here is what an unconfigured call gets.
+-- Per-style defaults for the world waypoints. Unlisted like the minigame
+-- entries: the Waypoints page owns these.
 
-define("minigames.skillcheck", {
-    group  = "minigames",
-    label  = "Needle Drop",
-    help   = "A needle sweeps a ring -- press the key while it crosses the marked arc.",
+define("waypoints.race", {
+    group  = "waypoints",
+    label  = "Race Checkpoint",
+    help   = "The big countdown face, for checkpoints and finish lines.",
     type   = "object",
     fields = {
-        { key = "rounds", label = "Rounds",       type = "integer", min = 1, max = 10 },
-        { key = "zone",   label = "Arc Size",     type = "integer", min = 8, max = 90, suffix = "deg" },
-        { key = "speed",  label = "Needle Speed", type = "integer", min = 60, max = 600, suffix = "deg/s" },
-        { key = "key",    label = "Key",          type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
+        { key = "label",           label = "Default Label", type = "string", max_length = 24, help = "Shown when a script does not pass one of its own." },
+        { key = "render_distance", label = "Show Within",   type = "integer", min = 50, max = 20000, suffix = "m" },
+        { key = "ground_line",     label = "Ground Line",   type = "boolean", help = "The thread down to the spot it marks." },
     },
-    default = { rounds = 3, zone = 40, speed = 220, key = "" },
+    default = { label = "CHECKPOINT", render_distance = 10000, ground_line = true },
 })
 
-define("minigames.keymash", {
-    group  = "minigames",
-    label  = "Key Mash",
-    help   = "Mash the key to fill the bar before the clock empties.",
+define("waypoints.taxi", {
+    group  = "waypoints",
+    label  = "Drop Off",
+    help   = "The destination plate, for drop-offs, deliveries and pickups.",
     type   = "object",
     fields = {
-        { key = "time",  label = "Time Limit", type = "integer", min = 2, max = 30, suffix = "s" },
-        { key = "decay", label = "Drain",      type = "integer", min = 0, max = 100, suffix = "%/s" },
-        { key = "gain",  label = "Per Press",  type = "integer", min = 1, max = 50, suffix = "%" },
-        { key = "key",   label = "Key",        type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
+        { key = "label",           label = "Default Label", type = "string", max_length = 24, help = "Shown when a script does not pass one of its own." },
+        { key = "render_distance", label = "Show Within",   type = "integer", min = 50, max = 20000, suffix = "m" },
+        { key = "ground_line",     label = "Ground Line",   type = "boolean", help = "The thread down to the spot it marks." },
     },
-    default = { time = 6, decay = 16, gain = 6, key = "" },
-})
-
-define("minigames.timing", {
-    group  = "minigames",
-    label  = "Timing Bar",
-    help   = "Stop the sweeping marker inside the zone. The zone shrinks each round.",
-    type   = "object",
-    fields = {
-        { key = "rounds", label = "Rounds",      type = "integer", min = 1, max = 10 },
-        { key = "zone",   label = "Zone Size",   type = "integer", min = 4, max = 40, suffix = "%" },
-        { key = "speed",  label = "Sweep Speed", type = "number", min = 0.3, max = 3, step = 0.05, suffix = "bars/s" },
-        { key = "key",    label = "Key",         type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
-    },
-    default = { rounds = 3, zone = 16, speed = 0.7, key = "" },
-})
-
-define("minigames.sequence", {
-    group  = "minigames",
-    label  = "Key Sequence",
-    help   = "Type the shown keys in order before the timer empties.",
-    type   = "object",
-    fields = {
-        { key = "length", label = "Keys",       type = "integer", min = 3, max = 12 },
-        { key = "time",   label = "Time Limit", type = "integer", min = 2, max = 30, suffix = "s" },
-    },
-    default = { length = 6, time = 5 },
-})
-
-define("minigames.memory", {
-    group  = "minigames",
-    label  = "Memory Grid",
-    help   = "Tiles flash and go dark -- click every tile that lit up.",
-    type   = "object",
-    fields = {
-        { key = "size",    label = "Grid",       type = "integer", min = 3, max = 6 },
-        { key = "flashes", label = "Tiles",      type = "integer", min = 2, max = 12 },
-        { key = "time",    label = "Time Limit", type = "integer", min = 3, max = 30, suffix = "s" },
-    },
-    default = { size = 4, flashes = 5, time = 8 },
-})
-
-define("minigames.connect", {
-    group  = "minigames",
-    label  = "Connect Circuits",
-    help   = "Drag a wire between every pair of matching dots without crossing.",
-    type   = "object",
-    fields = {
-        { key = "pairs", label = "Circuits",   type = "integer", min = 3, max = 5 },
-        { key = "time",  label = "Time Limit", type = "integer", min = 10, max = 120, suffix = "s" },
-    },
-    default = { pairs = 4, time = 45 },
-})
-
-define("minigames.wordwiz", {
-    group  = "minigames",
-    label  = "Word Scramble",
-    help   = "Unscramble the word and type it before the timer empties.",
-    type   = "object",
-    fields = {
-        { key = "length", label = "Word Length", type = "integer", min = 4, max = 8 },
-        { key = "time",   label = "Time Limit",  type = "integer", min = 3, max = 30, suffix = "s" },
-    },
-    default = { length = 6, time = 10 },
-})
-
-define("minigames.hold", {
-    group  = "minigames",
-    label  = "Hold Steady",
-    help   = "Hold the key to raise the pressure, then release inside the band.",
-    type   = "object",
-    fields = {
-        { key = "rounds", label = "Rounds",     type = "integer", min = 1, max = 8 },
-        { key = "zone",   label = "Band Size",  type = "integer", min = 4, max = 40, suffix = "%" },
-        { key = "speed",  label = "Fill Speed", type = "integer", min = 10, max = 200, suffix = "%/s" },
-        { key = "time",   label = "Time Limit", type = "integer", min = 3, max = 30, suffix = "s" },
-        { key = "key",    label = "Key",        type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
-    },
-    default = { rounds = 3, zone = 18, speed = 55, time = 8, key = "" },
-})
-
-define("minigames.reflex", {
-    group  = "minigames",
-    label  = "Reflex Rush",
-    help   = "A key appears somewhere new inside a closing ring -- hit each one in time.",
-    type   = "object",
-    fields = {
-        { key = "rounds", label = "Keys",       type = "integer", min = 1, max = 10 },
-        { key = "window", label = "Per Key",    type = "number", min = 0.4, max = 4, step = 0.1, suffix = "s" },
-        { key = "key",    label = "Key",        type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random." },
-    },
-    default = { rounds = 4, window = 1.3, key = "" },
-})
-
-define("minigames.breach", {
-    group  = "minigames",
-    label  = "Breach Protocol",
-    help   = "Pull a code sequence out of a matrix, alternating rows and columns, before the buffer fills.",
-    type   = "object",
-    fields = {
-        { key = "size",   label = "Grid",       type = "integer", min = 4, max = 6 },
-        { key = "length", label = "Sequence",   type = "integer", min = 3, max = 6 },
-        { key = "time",   label = "Time Limit", type = "integer", min = 10, max = 120, suffix = "s" },
-    },
-    default = { size = 5, length = 4, time = 30 },
-})
-
-define("minigames.lockpick", {
-    group  = "minigames",
-    label  = "Lock Pick",
-    help   = "Turn the pick with A and D and set each pin where the tension peaks.",
-    type   = "object",
-    fields = {
-        { key = "rounds", label = "Pins",       type = "integer", min = 1, max = 6 },
-        { key = "zone",   label = "Pin Size",   type = "integer", min = 8, max = 80, suffix = "deg" },
-        { key = "speed",  label = "Turn Speed", type = "integer", min = 40, max = 400, suffix = "deg/s" },
-        { key = "time",   label = "Time Limit", type = "integer", min = 10, max = 90, suffix = "s" },
-        { key = "key",    label = "Set Key",    type = "string", max_length = 12, help = "One key, several to pick from (EFG), or empty to draw one at random. A and D are never used." },
-    },
-    default = { rounds = 3, zone = 34, speed = 150, time = 25, key = "" },
-})
-
-define("minigames.codecrack", {
-    group  = "minigames",
-    label  = "Code Cracker",
-    help   = "Guess the digit code from marked feedback. Digits never repeat within a code.",
-    type   = "object",
-    fields = {
-        { key = "length", label = "Digits",     type = "integer", min = 3, max = 5 },
-        { key = "rounds", label = "Guesses",    type = "integer", min = 2, max = 8 },
-        { key = "time",   label = "Time Limit", type = "integer", min = 15, max = 120, suffix = "s" },
-    },
-    default = { length = 4, rounds = 5, time = 45 },
+    default = { label = "DROP OFF", render_distance = 10000, ground_line = true },
 })
 
 --------------------------------------------------

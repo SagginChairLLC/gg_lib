@@ -14,6 +14,8 @@ Roles.tools = {
     { id = "logs",      label = "Logs",      icon = "fa-clock-rotate-left" },
     { id = "bridges",   label = "Bridges",   icon = "fa-plug" },
     { id = "minigames", label = "Minigames", icon = "fa-gamepad" },
+    { id = "waypoints", label = "Waypoints", icon = "fa-location-dot" },
+    { id = "devtools",  label = "Dev Tools", icon = "fa-screwdriver-wrench" },
     { id = "items",     label = "Items",     icon = "fa-boxes-stacked" },
     { id = "vehicles",  label = "Vehicles",  icon = "fa-car" },
 }
@@ -44,7 +46,7 @@ local BUILTIN = {
             manage_admins = true,
             view = ALL,
             edit = ALL,
-            tools = toolSet("logs", "bridges", "minigames", "items", "vehicles"),
+            tools = toolSet("logs", "bridges", "minigames", "waypoints", "devtools", "items", "vehicles"),
         },
     },
     {
@@ -57,7 +59,7 @@ local BUILTIN = {
             manage_admins = false,
             view = ALL,
             edit = ALL,
-            tools = toolSet("logs", "bridges", "minigames", "items", "vehicles"),
+            tools = toolSet("logs", "bridges", "minigames", "waypoints", "devtools", "items", "vehicles"),
         },
     },
     {

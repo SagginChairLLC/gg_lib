@@ -105,6 +105,12 @@ CreateThread(function()
     -- Admins predate roles, so anyone already granted keeps full access.
     addColumn("gg_studio_admins", "role", "VARCHAR(48) NOT NULL DEFAULT 'admin'")
 
+    -- The minigames stopped being settings: they are code defaults a script
+    -- overrides per call, so anything stored for them is dead weight.
+    gg.db.migrate("drop_minigame_settings", function()
+        MySQL.query.await("DELETE FROM gg_studio_settings WHERE resource = ? AND path LIKE ?", { "gg_studio", "minigames.%" })
+    end)
+
     ready = true
     TriggerEvent("gg_lib:database:ready")
 end)

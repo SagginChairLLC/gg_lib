@@ -100,6 +100,12 @@ function AdminRow({
     const [confirming, setConfirming] = useState(false);
     const isConfig = entry.source === 'config';
 
+    // Neither of these was granted here, so neither can be taken away
+    // here: one lives in server_config.lua, the other in whatever gave
+    // them the permission.
+    const isServer = entry.source === 'server';
+    const locked = isConfig || isServer;
+
     useEffect(() => {
         if (!confirming) return;
 
@@ -125,6 +131,16 @@ function AdminRow({
                         {entry.name ? highlight(entry.name, query) : <span className="italic text-white/40">{t('admins_unnamed')}</span>}
                     </span>
 
+                    {isServer && (
+                        <span
+                            title={entry.granted_by ? `${t('admins_from_server_help')} ${entry.granted_by}` : t('admins_from_server_help')}
+                            className="flex flex-shrink-0 items-center gap-[0.4vh] rounded-[0.35vh] border border-sky-400/30 bg-sky-400/10 px-[0.6vh] py-[0.1vh] text-[1vh] font-bold uppercase tracking-widest text-sky-300/90"
+                        >
+                            <i className="fas fa-server text-[0.9vh]" />
+                            {t('admins_from_server')}
+                        </span>
+                    )}
+
                     {isConfig && (
                         <span className="flex flex-shrink-0 items-center gap-[0.4vh] rounded-[0.35vh] bg-primary/15 px-[0.6vh] py-[0.1vh] text-[1vh] font-bold uppercase tracking-widest text-primary">
                             <i className="fas fa-lock text-[0.9vh]" />
@@ -146,8 +162,11 @@ function AdminRow({
             </div>
 
             {/* The owner role comes from server_config.lua, so it is shown but never chosen. */}
-            {isConfig ? (
-                <span className="flex flex-shrink-0 items-center gap-[0.5vh] px-[0.8vh] text-[1.2vh] text-white/35" title={t('admins_config_hint')}>
+            {locked ? (
+                <span
+                    className="flex flex-shrink-0 items-center gap-[0.5vh] px-[0.8vh] text-[1.2vh] text-white/35"
+                    title={isServer ? `${t('admins_from_server_help')} ${entry.granted_by ?? ''}`.trim() : t('admins_config_hint')}
+                >
                     <i className={`fas ${role?.icon ?? 'fa-crown'} text-[1.15vh]`} />
                     <span className="text-[1.2vh] font-semibold">{role?.label ?? entry.role}</span>
                 </span>
@@ -164,7 +183,7 @@ function AdminRow({
                 />
             )}
 
-            {isConfig ? null : (
+            {locked ? null : (
                 <button
                     type="button"
                     disabled={disabled}
@@ -209,7 +228,7 @@ function PlayerRow({ player, query, disabled, onGrant }: { player: OnlinePlayer;
 // MARK: Page
 //--------------------------------------------------
 
-export default function SETTINGS_ADMINS({ canEdit, query }: { canEdit: boolean; query: string }) {
+export default function SETTINGS_ADMINS({ query }: { query: string }) {
     const admins = useAdmins((state) => state.admins);
     const roles = useAdmins((state) => state.roles);
     const canManage = useSettings((state) => state.canManage);

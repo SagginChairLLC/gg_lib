@@ -62,9 +62,27 @@ export const ADMINS_PAGE = '__gg_admins__';
 export const LOGS_PAGE = '__gg_logs__';
 export const BRIDGE_PAGE = '__gg_bridge__';
 export const MINIGAMES_PAGE = '__gg_minigames__';
+export const WAYPOINTS_PAGE = '__gg_waypoints__';
+export const DEV_PAGE = '__gg_dev__';
 
 export const ITEMS_PAGE = '__gg_items__';
 export const VEHICLES_PAGE = '__gg_vehicles__';
+
+/**
+ * The pages that are not scripts. They live in the same slot as a resource
+ * name, so anything deciding whether the current page still exists has to
+ * know they will never be found in the script list.
+ */
+export const TOOL_PAGES: readonly string[] = [
+    ADMINS_PAGE,
+    LOGS_PAGE,
+    BRIDGE_PAGE,
+    MINIGAMES_PAGE,
+    WAYPOINTS_PAGE,
+    DEV_PAGE,
+    ITEMS_PAGE,
+    VEHICLES_PAGE,
+];
 
 export const GENERIC_RESOURCE = 'gg_studio';
 export const THEME_PATH = 'theme.primary_color';
@@ -291,6 +309,14 @@ export function draftCount(resource: string): number {
     return Object.keys(useSettings.getState().draft[resource] ?? {}).length;
 }
 
+/** The page to stay on after a refresh, or null when it is really gone. */
+function keepPage(current: string | null, scripts: SettingsScript[]): string | null {
+    if (!current) return null;
+    if (TOOL_PAGES.includes(current)) return current;
+
+    return scripts.some((script) => script.resource === current) ? current : null;
+}
+
 export function applyScripts(scripts: SettingsScript[], canEdit?: boolean, access?: AccessPayload) {
     useSettings.setState((state) => {
         const sorted = [...scripts].sort((a, b) => {
@@ -307,7 +333,10 @@ export function applyScripts(scripts: SettingsScript[], canEdit?: boolean, acces
             role: access?.ROLE ?? state.role,
             roleLabel: access?.ROLE_LABEL ?? state.roleLabel,
             tools: access?.TOOLS ?? state.tools,
-            activeResource: state.activeResource && sorted.some((script) => script.resource === state.activeResource) ? state.activeResource : null,
+            // A tool page is never in the script list, so it has to be kept
+            // by name. Dropping it here is what sent someone back to the
+            // start every time they saved.
+            activeResource: keepPage(state.activeResource, sorted),
         };
     });
 }

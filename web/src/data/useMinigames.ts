@@ -89,8 +89,6 @@ export type MinigameMeta = {
     /** Reflex skill checks sit small at the bottom; minigames take the center. */
     category: MinigameCategory;
     description: string;
-    /** Path of the object setting holding this game's defaults. */
-    setting: string;
     /** Reasonable browser-preview config, mirroring the Lua defaults. */
     preview: MinigameConfig;
 };
@@ -102,7 +100,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-bullseye',
         category: 'skillcheck',
         description: 'A needle sweeps a circle — press the key while it crosses the marked arc. Misses and wrong keys fail.',
-        setting: 'minigames.skillcheck',
         preview: { rounds: 3, zone: 40, speed: 220, keys: ['E'] },
     },
     {
@@ -111,7 +108,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-hand-back-fist',
         category: 'skillcheck',
         description: 'Mash the key to fill the bar before time runs out. The bar drains the moment you slow down.',
-        setting: 'minigames.keymash',
         preview: { time: 6, decay: 22, gain: 7, keys: ['E'] },
     },
     {
@@ -120,7 +116,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-arrows-left-right',
         category: 'skillcheck',
         description: 'A marker bounces along a bar — stop it inside the zone. Each round the zone moves and shrinks.',
-        setting: 'minigames.timing',
         preview: { rounds: 3, zone: 16, speed: 0.9, keys: ['E'] },
     },
     {
@@ -129,7 +124,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-keyboard',
         category: 'skillcheck',
         description: 'A row of keys appears — type them in order before the timer empties. One wrong key fails.',
-        setting: 'minigames.sequence',
         preview: { length: 6, time: 5 },
     },
     {
@@ -138,7 +132,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-gauge-high',
         category: 'skillcheck',
         description: 'Hold the key to raise the pressure and let go inside the band. Overshooting the top fails.',
-        setting: 'minigames.hold',
         preview: { rounds: 3, zone: 18, speed: 55, time: 8 },
     },
     {
@@ -147,7 +140,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-bolt',
         category: 'skillcheck',
         description: 'A key appears somewhere new with a ring closing on it — hit each one before the ring lands.',
-        setting: 'minigames.reflex',
         preview: { rounds: 4, window: 1.3 },
     },
     {
@@ -156,7 +148,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-table-cells',
         category: 'minigame',
         description: 'Tiles flash, then go dark — click every tile that lit up. A wrong tile fails.',
-        setting: 'minigames.memory',
         preview: { size: 4, flashes: 5, time: 8 },
     },
     {
@@ -165,7 +156,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-font',
         category: 'minigame',
         description: 'Unscramble the word and type it before the timer empties.',
-        setting: 'minigames.wordwiz',
         preview: { length: 6, time: 10 },
     },
     {
@@ -174,7 +164,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-diagram-project',
         category: 'minigame',
         description: 'Drag a wire between every pair of matching dots. Wires cannot cross, and the clock keeps running.',
-        setting: 'minigames.connect',
         preview: { pairs: 4, time: 45 },
     },
     {
@@ -183,7 +172,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-terminal',
         category: 'minigame',
         description: 'Pull a code sequence out of a matrix, alternating between rows and columns, before the buffer fills.',
-        setting: 'minigames.breach',
         preview: { size: 5, length: 4, time: 30 },
     },
     {
@@ -192,7 +180,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-unlock-keyhole',
         category: 'minigame',
         description: 'Turn the pick with A and D and set each pin where the tension peaks. A pin set wrong snaps it.',
-        setting: 'minigames.lockpick',
         preview: { rounds: 3, zone: 34, speed: 150, time: 25 },
     },
     {
@@ -201,7 +188,6 @@ export const MINIGAMES: MinigameMeta[] = [
         icon: 'fa-lock',
         category: 'minigame',
         description: 'Guess the digit code from marked feedback — right digit, right slot, or not in the code at all.',
-        setting: 'minigames.codecrack',
         preview: { length: 4, rounds: 5, time: 45 },
     },
 ];

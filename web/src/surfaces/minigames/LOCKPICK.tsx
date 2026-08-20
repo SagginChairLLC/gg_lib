@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
-import { GameShell, Keycap, RoundBar, TimerBar, keyPool, randomKey, useGameKeys, useHeldKeys, useRafLoop, type Verdict } from './parts';
+import { GameShell, Keycap, RoundBar, TimerBar, useGameKeys, useHeldKeys, useKeySequence, useRafLoop, type Verdict } from './parts';
 
 /**
  * Turn the pick around the cylinder with A and D and set the pin where the
@@ -23,12 +23,9 @@ export default function LOCKPICK({ config, finish }: { config: MinigameConfig; f
     const baseZone = Math.max(8, Math.min(80, config.zone ?? 34));
     const time = Math.max(10, config.time ?? 25);
     const turn = Math.max(40, config.speed ?? 150);
-    const [key] = useState(() => {
-        // A and D turn the cylinder, so neither can also be the set key.
-        const pool = keyPool(config.keys).filter((entry) => entry !== 'A' && entry !== 'D');
-
-        return randomKey(pool.length > 0 ? pool : ['E']);
-    });
+    // A and D turn the cylinder, so neither can also be the set key.
+    const asked = useKeySequence(config.keys)(0);
+    const key = asked === 'A' || asked === 'D' ? 'E' : asked;
 
     const angle = useRef(0);
     const spot = useRef(Math.random() * 360);

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import type { MinigameConfig } from '@/data/useMinigames';
-import { FloatShell, Keycap, RoundBar, TimerBar, keyPool, randomKey, useGameKeys, useHeldKeys, useRafLoop, type Verdict } from './parts';
+import { FloatShell, Keycap, RoundBar, TimerBar, useGameKeys, useHeldKeys, useKeySequence, usePainted, useRafLoop, type Verdict } from './parts';
 
 /**
  * Hold the key to raise the pressure, let go inside the band. Overshooting the
@@ -14,7 +14,7 @@ export default function HOLD({ config, finish }: { config: MinigameConfig; finis
     const rounds = Math.max(1, config.rounds ?? 3);
     const baseBand = Math.max(4, Math.min(40, config.zone ?? 18));
     const time = Math.max(3, config.time ?? 8);
-    const [key] = useState(() => randomKey(keyPool(config.keys)));
+    const keyFor = useKeySequence(config.keys);
 
     const value = useRef(0);
     const left = useRef(time);
@@ -25,6 +25,8 @@ export default function HOLD({ config, finish }: { config: MinigameConfig; finis
     const armed = useRef(false);
     const speed = useRef(Math.max(10, config.speed ?? 55));
     const phase = useRef<'play' | 'over'>('play');
+
+    const painted = usePainted(value.current);
 
     const held = useHeldKeys();
 
@@ -49,7 +51,10 @@ export default function HOLD({ config, finish }: { config: MinigameConfig; finis
     };
 
     const release = () => {
-        const inside = value.current >= round.bandAt && value.current <= round.bandAt + round.bandWidth;
+        // Judged on the fill the player can see, not the one the frame loop has
+        // already pushed past.
+        const at = painted.current;
+        const inside = at >= round.bandAt && at <= round.bandAt + round.bandWidth;
 
         if (!inside) return end(false);
 
@@ -70,9 +75,10 @@ export default function HOLD({ config, finish }: { config: MinigameConfig; finis
 
         if (left.current <= 0) return end(false);
 
-        const down = held.current.has(key) && armed.current;
+        const wanted = keyFor(cleared);
+        const down = held.current.has(wanted) && armed.current;
 
-        if (!held.current.has(key)) armed.current = true;
+        if (!held.current.has(wanted)) armed.current = true;
 
         if (down) {
             value.current = Math.min(100, value.current + speed.current * delta);
@@ -91,6 +97,8 @@ export default function HOLD({ config, finish }: { config: MinigameConfig; finis
         if (phase.current !== 'play') return;
         if (incoming === 'ESCAPE') return end(false);
     });
+
+    const key = keyFor(cleared);
 
     const bandClass =
         verdict === 'lost'

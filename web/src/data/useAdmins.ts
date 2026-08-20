@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import { fetchNui, isEnvBrowser } from '@/lib/fetchNui';
 
-export type AdminSource = 'config' | 'database';
+/**
+ * Where someone's access comes from. 'config' is server_config.lua and
+ * 'database' is this page; 'server' is a permission the server already
+ * granted them elsewhere, which this page can show but not change.
+ */
+export type AdminSource = 'config' | 'database' | 'server';
 
 export type AdminEntry = {
     identifier: string;
@@ -69,6 +74,7 @@ const mockAdmins: AdminEntry[] = [
     { identifier: 'license2:6e713bc45df69b1338e94c292948ef0053ffb638', name: 'Sag', source: 'config', role: 'god' },
     { identifier: 'license2:b41d90ac7752e8f3a0c614db2e8f77aa31c0d904', name: 'Roan', source: 'config', role: 'god' },
     { identifier: 'license2:9f22c1aa77be40218c5d3e0b6a41d7cc90e3b155', name: 'Marlow', source: 'database', role: 'admin', granted_by: 'Sag (license2:6e71…)', granted_at: '2026-08-14' },
+    { identifier: 'license2:31ab04c7d9e2f8560b73a1cc4408ef29d7714b62', name: 'Nova', source: 'server', role: 'admin', granted_by: 'group.admin' },
     { identifier: 'license2:2ad8f0e91cb7346dd05e8a1f77b902cc4e16aa38', name: 'Devi', source: 'database', role: 'taxi_only', granted_by: 'Sag (license2:6e71…)', granted_at: '2026-08-09' },
     { identifier: 'license2:77c1e4b0a9df23851ce6b0f4471dd2e6a8390bb1', source: 'database', role: 'moderator', granted_by: 'Marlow (license2:9f22…)', granted_at: '2026-07-28' },
 ];

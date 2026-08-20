@@ -124,11 +124,139 @@ function Admins.isAdmin(source)
         if fromConfig[key] or fromDatabase[key] then return true end
     end
 
-    return false
+    return Admins.roleOf(source) ~= nil
 end
 
 function Admins.isConfigAdmin(identifier)
     return fromConfig[identifier] ~= nil
+end
+
+--------------------------------------------------
+-- MARK: Server permissions
+--------------------------------------------------
+-- A server that already trusts someone should not have to say so twice.
+-- Anyone holding one of the usual admin principals, or sitting in their
+-- framework's admin group, gets the matching role here without being added
+-- to a list by hand.
+--
+-- Never the owner role: managing who else gets in stays with the people
+-- named in server_config.lua, because that file is the way back in when
+-- everything else says no.
+
+local ACE_ROLES = {
+    -- Whole-server principals, then the ones each framework registers.
+    ["group.god"]        = "admin",
+    ["group.superadmin"] = "admin",
+    ["group.admin"]      = "admin",
+    ["qbcore.god"]       = "admin",
+    ["qbcore.admin"]     = "admin",
+    ["qbx.god"]          = "admin",
+    ["qbx.admin"]        = "admin",
+    ["group.mod"]        = "moderator",
+    ["group.moderator"]  = "moderator",
+}
+
+-- Read straight off the running framework rather than through the bridge:
+-- this is the only place gg_lib needs it, and the bridge is deliberately
+-- free of permission calls.
+local FRAMEWORK_GROUPS = {
+    superadmin = "admin",
+    god        = "admin",
+    admin      = "admin",
+    mod        = "moderator",
+    moderator  = "moderator",
+}
+
+local function running(name)
+    local state = GetResourceState(name)
+
+    return state == "started" or state == "starting"
+end
+
+--- The group a framework says someone is in, lowercased, or nil.
+local function frameworkGroup(source)
+    if running("es_extended") then
+        local ok, group = pcall(function()
+            local core = exports.es_extended:getSharedObject()
+            local player = core and core.GetPlayerFromId(source)
+
+            return player and player.getGroup and player.getGroup()
+        end)
+
+        if ok and type(group) == "string" then return group:lower() end
+    end
+
+    if running("qb-core") then
+        local ok, group = pcall(function()
+            local core = exports["qb-core"]:GetCoreObject()
+            if not (core and core.Functions and core.Functions.GetPermission) then return nil end
+
+            local held = core.Functions.GetPermission(source)
+
+            -- Older builds answer with the name, newer ones with a set of
+            -- every group held.
+            if type(held) == "string" then return held end
+
+            if type(held) == "table" then
+                for name, allowed in pairs(held) do
+                    if allowed and FRAMEWORK_GROUPS[tostring(name):lower()] then return name end
+                end
+            end
+
+            return nil
+        end)
+
+        if ok and type(group) == "string" then return group:lower() end
+    end
+
+    return nil
+end
+
+-- Said once per player per session: an admin appearing out of nowhere should
+-- be explainable from the console.
+local announced = {}
+
+local function announce(source, role, why)
+    local key = Admins.license2(source) or tostring(source)
+
+    if announced[key] then return end
+
+    announced[key] = true
+
+    print(("[gg_lib] %s is %s here because of %s. Set auto_admin = false in server_config.lua to stop this."):format(
+        Admins.actor(source), role, why))
+end
+
+AddEventHandler("playerDropped", function()
+    local key = Admins.license2(source)
+
+    if key then announced[key] = nil end
+end)
+
+--- The role a server's own permissions earn someone, or nil for none.
+function Admins.serverRole(source)
+    if config.auto_admin == false then return nil end
+    if Admins.isConsole(source) then return nil end
+
+    local best, why = nil, nil
+
+    for ace, role in pairs(ACE_ROLES) do
+        if IsPlayerAceAllowed(source, ace) then
+            -- An edit role beats a view-only one, whichever is found first.
+            if role == "admin" then return role, ace end
+
+            best, why = best or role, why or ace
+        end
+    end
+
+    local group = frameworkGroup(source)
+    local fromGroup = group and FRAMEWORK_GROUPS[group]
+
+    if fromGroup == "admin" then return fromGroup, ("the %s group"):format(group) end
+
+    if fromGroup and not best then return fromGroup, ("the %s group"):format(group) end
+
+    return best, why
 end
 
 --------------------------------------------------
@@ -162,9 +290,19 @@ function Admins.roleOf(source)
         end
     end
 
-    if config.ace == false then return nil end
-    if IsPlayerAceAllowed(source, ACE_EDIT) then return Roles.DEFAULT end
-    if IsPlayerAceAllowed(source, ACE_VIEW) then return "moderator" end
+    if config.ace ~= false then
+        if IsPlayerAceAllowed(source, ACE_EDIT) then return Roles.DEFAULT end
+        if IsPlayerAceAllowed(source, ACE_VIEW) then return "moderator" end
+    end
+
+    -- Last: whatever the server already trusts them with.
+    local earned, why = Admins.serverRole(source)
+
+    if earned then
+        announce(source, earned, why)
+
+        return earned
+    end
 
     return nil
 end
@@ -323,8 +461,31 @@ local function listAdmins()
         end
     end
 
+    -- Anyone online who is in on their server permissions rather than on
+    -- either list. Shown so the page answers "who can get in" honestly, and
+    -- read-only because it is not this page that granted it.
+    for _, player in ipairs(GetPlayers()) do
+        local identifier = normalize(Admins.license2(player) or "")
+        local earned, why = Admins.serverRole(player)
+
+        if identifier and earned and not seen[identifier] then
+            seen[identifier] = true
+            list[#list + 1] = {
+                identifier = identifier,
+                name       = names[identifier],
+                source     = "server",
+                role       = earned,
+                granted_by = why,
+            }
+        end
+    end
+
+    local ORDER = { config = 1, server = 2, database = 3 }
+
     table.sort(list, function(left, right)
-        if left.source ~= right.source then return left.source == "config" end
+        local a, b = ORDER[left.source] or 9, ORDER[right.source] or 9
+
+        if a ~= b then return a < b end
 
         return (left.name or left.identifier) < (right.name or right.identifier)
     end)

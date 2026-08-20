@@ -8,7 +8,11 @@ license 'LGPL-3.0-or-later'
 version '1.0.1'
 description 'GG Studio | Import-based library: bridge, gg.* modules, /jobsettings editor | Discord: https://discord.gg/DqMXJzATph'
 
-ui_page "http://localhost:5180/"
+-- Ships the built UI. Swap these two lines to develop against the vite dev
+-- server (web/vite.config.ts serves on 5180); leaving the dev URL active means
+-- no gg_lib UI at all in game -- no popups, no editor, no tool HUD.
+ui_page "web/dist/index.html"
+-- ui_page "http://localhost:5180/"
 
 files {
     'init.lua',

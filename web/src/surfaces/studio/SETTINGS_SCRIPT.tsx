@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { applyAppearance, applyTheme, hideEditor, t } from '@/data/useLang';
+import { applyAppearance, applyTheme, hideEditor, t, toggleExpanded, useLang } from '@/data/useLang';
 import { fetchAdmins } from '@/data/useAdmins';
 import { fetchNui, isEnvBrowser } from '@/lib/fetchNui';
 import {
@@ -26,6 +26,7 @@ import {
     useSettings,
     type SettingEntry,
     type SettingsScript,
+    type SettingsWarning,
 } from '@/data/useSettings';
 import SettingControl, { isWideType } from './SETTING_CONTROL';
 import SETTINGS_ADMINS from './SETTINGS_ADMINS';
@@ -303,6 +304,73 @@ function DetailPane({
 // MARK: Script Page
 //--------------------------------------------------
 
+//--------------------------------------------------
+// MARK: Requirements
+//--------------------------------------------------
+
+/**
+ * What a script said it needs and the server has not got.
+ *
+ * This sits between the header and the settings because it changes what the
+ * settings mean: tuning a payout is pointless while the item it pays out in
+ * does not exist. Missing optional things are worth saying once and no more,
+ * so they are counted apart and never colour the strip on their own.
+ */
+function WarningStrip({ warnings }: { warnings: SettingsWarning[] }) {
+    const [open, setOpen] = useState(false);
+
+    const blocking = warnings.filter((warning) => !warning.optional);
+    const count = blocking.length > 0 ? blocking.length : warnings.length;
+    const tone = blocking.length > 0;
+
+    return (
+        <div className={`flex flex-shrink-0 flex-col border-b ${tone ? 'border-red-500/25 bg-red-500/[0.06]' : 'border-amber-400/25 bg-amber-400/[0.05]'}`}>
+            <button
+                type="button"
+                onClick={() => setOpen((current) => !current)}
+                className="flex min-h-[3.6vh] items-center gap-[1vh] px-[1.6vh] text-left"
+            >
+                <i className={`fas fa-triangle-exclamation text-[1.4vh] ${tone ? 'text-red-400' : 'text-amber-400'}`} />
+
+                <span className={`text-[1.45vh] font-semibold ${tone ? 'text-red-200' : 'text-amber-200'}`}>
+                    {count} {count === 1 ? t('settings_warnings_one') : t('settings_warnings_many')}
+                </span>
+
+                <span className="ml-auto flex items-center gap-[0.6vh] text-[1.3vh] text-white/40">
+                    {open ? '' : t('settings_warnings_show')}
+                    <i className={`fas ${open ? 'fa-chevron-up' : 'fa-chevron-down'} text-[1.1vh]`} />
+                </span>
+            </button>
+
+            {open && (
+                <div className="flex flex-col gap-[0.6vh] px-[1.6vh] pb-[1.2vh]">
+                    {warnings.map((warning) => (
+                        <div key={`${warning.kind}:${warning.name}`} className="flex items-start gap-[1vh] rounded-[0.4vh] border border-white/10 bg-black/20 px-[1.2vh] py-[0.8vh]">
+                            <i className={`fas ${warning.kind === 'item' ? 'fa-box-open' : 'fa-plug-circle-xmark'} mt-[0.3vh] w-[1.8vh] flex-shrink-0 text-center text-[1.3vh] ${warning.optional ? 'text-white/35' : 'text-red-400/80'}`} />
+
+                            <div className="flex min-w-0 flex-1 flex-col gap-[0.2vh]">
+                                <div className="flex items-center gap-[0.8vh]">
+                                    <span className="truncate font-mono text-[1.35vh] font-semibold text-white/90">{warning.name}</span>
+
+                                    {warning.optional && (
+                                        <span className="flex-shrink-0 rounded-[0.3vh] border border-white/15 px-[0.5vh] text-[1vh] uppercase tracking-widest text-white/40">
+                                            {t('settings_warning_optional')}
+                                        </span>
+                                    )}
+                                </div>
+
+                                <span className="text-[1.25vh] text-white/45">
+                                    {warning.why ?? (warning.kind === 'item' ? t('settings_warning_item') : t('settings_warning_resource'))}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsScript; scripts: SettingsScript[] }) {
     const globalEdit = useSettings((state) => state.canEdit);
 
@@ -312,6 +380,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
     const activeResource = useSettings((state) => state.activeResource);
     const pickerOpen = usePicker((state) => state.open);
     const search = useSettings((state) => state.search);
+    const expanded = useLang((state) => state.expanded);
     const draft = useSettings((state) => state.draft[script.resource]) ?? EMPTY_DRAFT;
     const saving = useSettings((state) => state.saving);
     const generalError = useSettings((state) => state.errors._);
@@ -323,6 +392,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
     const [justSaved, setJustSaved] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [adminOpen, setAdminOpen] = useState(false);
+    const [devOpen, setDevOpen] = useState(false);
 
 
 
@@ -518,6 +588,17 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                     <span className={`absolute left-0 top-1/2 h-[60%] w-[0.35vh] -translate-y-1/2 rounded-full ${isCurrent ? 'bg-primary' : 'bg-transparent'}`} />
                     <i className={`fas ${candidate.icon ?? 'fa-gear'} w-[2vh] text-center text-[1.5vh] ${isCurrent ? 'text-primary' : 'text-white/35'}`} />
                     <span className="min-w-0 flex-1 truncate text-[1.5vh] font-semibold">{candidate.label}</span>
+
+                    {/* Something missing is worth seeing from the list, without
+                        having to open the script to find out. */}
+                    {(candidate.warnings?.length ?? 0) > 0 && (
+                        <i
+                            className={`fas fa-triangle-exclamation flex-shrink-0 text-[1.2vh] ${
+                                candidate.warnings?.some((warning) => !warning.optional) ? 'text-red-400' : 'text-amber-400'
+                            }`}
+                        />
+                    )}
+
                     {hasOverrides && <span className="h-[0.7vh] w-[0.7vh] flex-shrink-0 rounded-full bg-primary" />}
                 </button>
 
@@ -551,37 +632,57 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
         );
     };
 
-    // One rail entry instead of a button per tool: the list keeps growing, and
-    // a flat stack of them buries the scripts above it.
-    const renderAdminGroup = () => {
-        const tools = [
-            { page: ADMINS_PAGE, icon: 'fa-user-shield', label: t('admins_title'), current: adminsPage, need: null },
-            { page: LOGS_PAGE, icon: 'fa-clock-rotate-left', label: t('logs_title'), current: logsPage, need: 'logs' },
-            { page: BRIDGE_PAGE, icon: 'fa-plug', label: t('bridge_title'), current: bridgePage, need: 'bridges' },
-            { page: MINIGAMES_PAGE, icon: 'fa-gamepad', label: t('minigames_title'), current: minigamesPage, need: 'minigames' },
-            { page: WAYPOINTS_PAGE, icon: 'fa-location-dot', label: t('waypoints_title'), current: waypointsPage, need: 'waypoints' },
-            { page: DEV_PAGE, icon: 'fa-screwdriver-wrench', label: t('dev_title'), current: devPage, need: 'devtools' },
-            { page: ITEMS_PAGE, icon: 'fa-boxes-stacked', label: t('catalogue_items'), current: itemsPage, need: 'items' },
-            { page: VEHICLES_PAGE, icon: 'fa-car', label: t('catalogue_vehicles'), current: vehiclesPage, need: 'vehicles' },
-        ].filter((tool) => tool.need === null || canUseTool(tool.need));
+    /**
+     * The tools, split by who opens them.
+     *
+     * Admin is about the server as it is running: who has access, what has been
+     * changed, what the inventory carries. Dev is about building a script in the
+     * first place, and nothing in it affects a live player. One rail was getting
+     * long enough that the two kinds buried each other.
+     */
+    const ADMIN_TOOLS = [
+        { page: ADMINS_PAGE, icon: 'fa-user-shield', label: t('admins_title'), current: adminsPage, need: null },
+        { page: LOGS_PAGE, icon: 'fa-clock-rotate-left', label: t('logs_title'), current: logsPage, need: 'logs' },
+        { page: ITEMS_PAGE, icon: 'fa-boxes-stacked', label: t('catalogue_items'), current: itemsPage, need: 'items' },
+        { page: VEHICLES_PAGE, icon: 'fa-car', label: t('catalogue_vehicles'), current: vehiclesPage, need: 'vehicles' },
+    ];
+
+    const DEV_TOOLS = [
+        { page: BRIDGE_PAGE, icon: 'fa-plug', label: t('bridge_title'), current: bridgePage, need: 'bridges' },
+        { page: MINIGAMES_PAGE, icon: 'fa-gamepad', label: t('minigames_title'), current: minigamesPage, need: 'minigames' },
+        { page: WAYPOINTS_PAGE, icon: 'fa-location-dot', label: t('waypoints_title'), current: waypointsPage, need: 'waypoints' },
+        { page: DEV_PAGE, icon: 'fa-screwdriver-wrench', label: t('dev_title'), current: devPage, need: 'devtools' },
+    ];
+
+    const renderToolGroup = (
+        rail: { page: string; icon: string; label: string; current: boolean; need: string | null }[],
+        title: string,
+        icon: string,
+        isOpen: boolean,
+        setOpen: (value: boolean) => void,
+    ) => {
+        const tools = rail.filter((tool) => tool.need === null || canUseTool(tool.need));
 
         if (tools.length === 0) return null;
 
-        const open = adminOpen || isPage;
+        // A rail holding the page you are on opens itself, and the other stays
+        // shut rather than both springing open on every tool page.
+        const holdsCurrent = tools.some((tool) => tool.current);
+        const open = isOpen || holdsCurrent;
         const active = tools.find((tool) => tool.current);
 
         return (
             <div>
                 <button
                     type="button"
-                    onClick={() => setAdminOpen(!open)}
+                    onClick={() => setOpen(!open)}
                     className={`relative flex w-full items-center gap-[1vh] rounded-[0.4vh] px-[1vh] py-[0.9vh] text-left transition-colors duration-200 ${
-                        isPage ? 'text-white' : 'text-white/60 hover:bg-white/[0.03] hover:text-white/90'
+                        holdsCurrent ? 'text-white' : 'text-white/60 hover:bg-white/[0.03] hover:text-white/90'
                     }`}
                 >
-                    <span className={`absolute left-0 top-1/2 h-[60%] w-[0.35vh] -translate-y-1/2 rounded-full ${isPage ? 'bg-primary' : 'bg-transparent'}`} />
-                    <i className={`fas fa-toolbox w-[2vh] text-center text-[1.5vh] ${isPage ? 'text-primary' : 'text-white/35'}`} />
-                    <span className="min-w-0 flex-1 truncate text-[1.5vh] font-semibold">{t('settings_admin_tools')}</span>
+                    <span className={`absolute left-0 top-1/2 h-[60%] w-[0.35vh] -translate-y-1/2 rounded-full ${holdsCurrent ? 'bg-primary' : 'bg-transparent'}`} />
+                    <i className={`fas ${icon} w-[2vh] text-center text-[1.5vh] ${holdsCurrent ? 'text-primary' : 'text-white/35'}`} />
+                    <span className="min-w-0 flex-1 truncate text-[1.5vh] font-semibold">{title}</span>
 
                     {!open && active && <span className="flex-shrink-0 truncate text-[1.2vh] text-white/35">{active.label}</span>}
 
@@ -612,6 +713,13 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
             </div>
         );
     };
+
+    const renderAdminGroup = () => (
+        <>
+            {renderToolGroup(ADMIN_TOOLS, t('settings_admin_tools'), 'fa-toolbox', adminOpen, setAdminOpen)}
+            {renderToolGroup(DEV_TOOLS, t('settings_dev_tools'), 'fa-screwdriver-wrench', devOpen, setDevOpen)}
+        </>
+    );
 
     const handleClose = () => {
         hideEditor();
@@ -690,7 +798,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
             <div className="relative flex min-h-[5.8vh] items-center gap-[1.2vh] border-b border-white/10 px-[1.6vh]">
                 <span className="truncate text-[1.9vh] font-bold text-white/95">{adminsPage ? t('admins_title') : logsPage ? t('logs_title') : script.label}</span>
 
-                <div className="absolute left-1/2 top-1/2 w-[34vh] -translate-x-1/2 -translate-y-1/2">
+                <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${expanded ? 'w-[52vh]' : 'w-[34vh]'}`}>
                     <i className="fas fa-magnifying-glass pointer-events-none absolute left-[1.2vh] top-1/2 -translate-y-1/2 text-[1.4vh] text-white/35" />
                     <input
                         type="text"
@@ -718,6 +826,15 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                         <i className={`fas fa-arrows-rotate ${refreshing ? 'animate-spin' : ''}`} />
                     </button>
 
+                    <button
+                        type="button"
+                        title={expanded ? t('settings_collapse') : t('settings_expand')}
+                        onClick={toggleExpanded}
+                        className="flex h-[3.4vh] w-[3.4vh] flex-shrink-0 items-center justify-center rounded-[0.4vh] border border-white/10 text-[1.3vh] text-white/50 transition-colors hover:border-primary/40 hover:text-primary"
+                    >
+                        <i className={`fas ${expanded ? 'fa-compress' : 'fa-expand'}`} />
+                    </button>
+
                     <span className="h-[2.4vh] w-px flex-shrink-0 bg-white/10" />
 
                     <button
@@ -731,8 +848,10 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                 </div>
             </div>
 
+            {!isPage && (script.warnings?.length ?? 0) > 0 && <WarningStrip warnings={script.warnings ?? []} />}
+
             <div className="flex min-h-0 flex-1">
-                <div className="flex w-[27vh] flex-shrink-0 flex-col border-r border-white/10 bg-white/[0.015]">
+                <div className={`flex flex-shrink-0 flex-col border-r border-white/10 bg-white/[0.015] ${expanded ? 'w-[34vh]' : 'w-[27vh]'}`}>
                     <div className="flex items-center gap-[1vh] border-b border-white/10 px-[1.4vh] py-[1.2vh]">
                         <div className="flex h-[2.8vh] w-[2.8vh] flex-shrink-0 items-center justify-center rounded-[0.4vh] border border-primary/40 bg-primary/10">
                             <i className="fas fa-cubes text-[1.2vh] text-primary" />
@@ -785,6 +904,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
 
                 {!isPage && !detailEntry && (
                 <div ref={containerRef} onScroll={onScroll} onWheel={stopJump} onPointerDown={stopJump} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-[2vh] py-[1.6vh]">
+                    <div className={expanded ? 'mx-auto w-full max-w-[150vh]' : ''}>
                     {visibleGroups.map((group) => (
                         <section
                             key={group.id}
@@ -828,6 +948,7 @@ export default function SETTINGS_SCRIPT({ script, scripts }: { script: SettingsS
                     )}
 
                     {!query && <SETTINGS_RESET script={script} disabled={!canEdit} onDone={handleRefresh} />}
+                    </div>
                 </div>
                 )}
 

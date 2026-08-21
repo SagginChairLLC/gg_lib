@@ -1,12 +1,24 @@
 import React from 'react';
 import { motion, Variants } from 'framer-motion';
 import { usePopup, type PopupPosition, type PopupVariant } from '@/data/usePopup';
+import { parseColor } from '@/lib/color-utils';
 
 const PopupComponent = React.memo(() => {
     const popupMessage = usePopup((state) => state.message);
     const popupPosition = usePopup((state) => state.position);
     const popupVariant = usePopup((state) => state.variant);
     const popupKeybind = usePopup((state) => state.keybind);
+    const popupAccent = usePopup((state) => state.accent);
+
+    // Scoped to this element rather than set on :root -- a taxi prompt must not
+    // repaint the settings editor behind it.
+    const accentStyle = React.useMemo(() => {
+        if (!popupAccent) return undefined;
+
+        const parsed = parseColor(popupAccent);
+
+        return parsed.spaceSeparated ? ({ ['--primary' as string]: parsed.spaceSeparated } as React.CSSProperties) : undefined;
+    }, [popupAccent]);
     const positions: Record<PopupPosition, string> = {
         'bottom-middle': 'bottom-1 left-1/2 -translate-x-1/2',
         'right-middle': 'top-1/2 right-1 -translate-y-1/2',
@@ -92,7 +104,7 @@ const PopupComponent = React.memo(() => {
 
     return (
         <div className="pointer-events-none absolute inset-0 h-full w-full">
-            <div className={`pointer-events-none absolute ${positions[currentPosition]}`}>
+            <div className={`pointer-events-none absolute ${positions[currentPosition]}`} style={accentStyle}>
                 <motion.div
                     className="pointer-events-auto h-auto w-auto min-w-[20vh] max-w-[50vh] rounded-[0.5vh] bg-neutral-900/[0.99] p-[0.9vh] text-[#eeeeee]"
                     variants={getAnimationVariants(currentPosition)}

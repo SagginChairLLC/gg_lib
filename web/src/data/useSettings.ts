@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type SettingType = 'boolean' | 'number' | 'integer' | 'percent' | 'string' | 'enum' | 'color' | 'blipcolor' | 'blipsprite' | 'ped' | 'vehicle' | 'coords' | 'time' | 'keybind' | 'object' | 'list';
+export type SettingType = 'boolean' | 'number' | 'integer' | 'percent' | 'string' | 'enum' | 'color' | 'blipcolor' | 'blipsprite' | 'ped' | 'vehicle' | 'item' | 'coords' | 'time' | 'keybind' | 'object' | 'list' | 'outfit';
 
 export type SettingOption = string | { value: string; label: string };
 
@@ -41,6 +41,9 @@ export type SettingEntry = {
     item_default?: Record<string, unknown>;
     min_items?: number;
     max_items?: number;
+    /** Names the column holding a draw weight. The list then shows each row's
+     *  real chance, worked out against the total rather than left to the reader. */
+    weight_key?: string;
     min?: number;
     max?: number;
     max_length?: number;
@@ -94,6 +97,15 @@ export type SettingGroup = {
     help?: string;
 };
 
+/** Something a script said it needs that the server has not got. */
+export type SettingsWarning = {
+    kind: 'item' | 'resource';
+    name: string;
+    /** What the script wanted it for, when the script bothered to say. */
+    why?: string;
+    optional?: boolean;
+};
+
 export type SettingsScript = {
     resource: string;
     label: string;
@@ -106,6 +118,8 @@ export type SettingsScript = {
     can_edit?: boolean;
     groups: SettingGroup[];
     entries: SettingEntry[];
+    /** Absent when nothing is missing, rather than an empty list. */
+    warnings?: SettingsWarning[];
 };
 
 export type DraftValue = { kind: 'set'; value: unknown } | { kind: 'reset' };

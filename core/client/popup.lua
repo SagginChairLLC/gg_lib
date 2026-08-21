@@ -34,6 +34,7 @@ local state = {
     position = "bottom-middle",
     variant  = "info",
     keybind  = "",
+    accent   = "",
 }
 
 local function update(partial)
@@ -77,6 +78,13 @@ local function update(partial)
             state.variant = variant
             out.variant = variant
         end
+    end
+
+    -- The colour of whichever script raised it. Empty restores gg_lib's own,
+    -- so a script that passes nothing does not inherit the last one's theme.
+    if type(partial.accent) == "string" and partial.accent ~= state.accent then
+        state.accent = partial.accent
+        out.accent = partial.accent
     end
 
     if type(partial.keybind) == "string" and partial.keybind ~= state.keybind then

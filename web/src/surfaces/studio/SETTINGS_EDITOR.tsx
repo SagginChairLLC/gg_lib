@@ -9,6 +9,7 @@ export default function SETTINGS_EDITOR() {
     const scripts = useSettings((state) => state.scripts);
 
     const [hovered, setHovered] = useState(true);
+    const expanded = useLang((state) => state.expanded);
     const fade = useLang((state) => state.fade);
     const fadeOpacity = useLang((state) => state.fadeOpacity);
 
@@ -41,7 +42,11 @@ export default function SETTINGS_EDITOR() {
                 onMouseEnter={() => setHovered(true)}
                 onMouseLeave={() => setHovered(false)}
                 style={{ opacity }}
-                className="flex h-[78vh] w-[148vh] flex-col overflow-hidden rounded-[0.5vh] border border-white/10 bg-neutral-950 shadow-[0_30px_90px_rgba(0,0,0,0.65)] transition-opacity duration-200"
+                className={`flex flex-col overflow-hidden bg-neutral-950 transition-opacity duration-200 ${
+                    expanded
+                        ? 'h-full w-full'
+                        : 'h-[78vh] w-[148vh] rounded-[0.5vh] border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.65)]'
+                }`}
             >
                 <SETTINGS_SCRIPT script={activeScript} scripts={scripts} />
             </div>

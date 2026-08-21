@@ -6,6 +6,8 @@ import { matchColorNotation, parseColor } from '@/lib/color-utils';
 import { BLIP_COLORS, BLIP_COLOR_BY_ID, BLIP_SPRITES, BLIP_SPRITE_BY_ID, spriteImageUrl } from '@/data/blips';
 import { PEDS, PED_BY_MODEL, pedImageUrl } from '@/data/peds';
 import { openPicker } from '@/data/usePicker';
+import { openOutfit, type OutfitValue } from '@/data/useOutfit';
+import { fetchCatalogue, useCatalogue } from '@/data/useCatalogue';
 import { effectiveValue, useSettings, type SettingField, type SettingOption, type SettingType } from '@/data/useSettings';
 
 const INPUT = 'h-[3.6vh] w-full rounded-[0.6vh] border border-white/10 bg-neutral-950/60 px-[1.1vh] text-[1.5vh] text-white/90 transition-colors focus:border-primary/60';
@@ -23,6 +25,8 @@ export type ControlDef = {
     item_default?: Record<string, unknown>;
     min_items?: number;
     max_items?: number;
+    /** Names the column holding a draw weight; the list then shows real odds. */
+    weight_key?: string;
     nullable?: boolean;
     preview_from?: Record<string, string>;
     /** Model the world editor stands in for each point, when no preview_from resolves. */
@@ -602,6 +606,90 @@ function BlipSpriteControl({ value, onChange, disabled }: ControlProps) {
     );
 }
 
+/**
+ * An item, picked from what the server actually carries.
+ *
+ * Typed by hand this is a guess at a name nobody can verify, and a typo only
+ * shows up when a payout silently hands over nothing. The drawer lists the
+ * real inventory, searchable, with the labels and icons a player would see.
+ *
+ * Custom entries are still allowed: a script is often configured before the
+ * item is added, and refusing to accept one would make that unfixable.
+ */
+function ItemControl({ value, onChange, disabled }: ControlProps) {
+    const current = String(value ?? '');
+    const items = useCatalogue((state) => state.items);
+    const loaded = useCatalogue((state) => state.loaded);
+
+    const known = useMemo(() => items.find((entry) => entry.name === current), [items, current]);
+
+    // Fetched on first use rather than on every editor open, so a server whose
+    // settings never mention an item never pays for the list.
+    useEffect(() => {
+        if (!loaded) void fetchCatalogue();
+    }, [loaded]);
+
+    return (
+        <DrawerTrigger
+            disabled={disabled}
+            preview={
+                current ? (
+                    <img
+                        src={known?.image}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="h-[2.4vh] w-[2.4vh] flex-shrink-0 rounded-[0.3vh] bg-black/30 object-contain"
+                    />
+                ) : (
+                    <span className="h-[2.4vh] w-[2.4vh] flex-shrink-0 rounded-[0.3vh] bg-white/[0.06]" />
+                )
+            }
+            label={known?.label || current || t('settings_unset')}
+            note={current && loaded && !known ? t('settings_item_custom') : undefined}
+            onOpen={() =>
+                openPicker({
+                    title: t('settings_item_search'),
+                    columns: 5,
+                    value: current,
+                    allowCustom: true,
+                    customHint: t('picker_hint_item'),
+                    items: items.map((entry) => ({
+                        id: entry.name,
+                        label: entry.label || entry.name,
+                        sublabel: entry.name,
+                        image: entry.image,
+                    })),
+                    onSelect: (next) => onChange(String(next).trim().toLowerCase()),
+                })
+            }
+        />
+    );
+}
+
+/**
+ * Clothing is edited on a ped, not in a form, so this hands off to a mode of
+ * its own. What sits in the settings row is a count and a way in.
+ */
+function OutfitControl({ value, onChange, disabled }: ControlProps) {
+    const outfit = (value ?? {}) as OutfitValue;
+
+    const changed = (['male', 'female'] as const).reduce((sum, gender) => {
+        const body = outfit[gender];
+
+        return sum + Object.keys(body?.components ?? {}).length + Object.keys(body?.props ?? {}).length;
+    }, 0);
+
+    return (
+        <DrawerTrigger
+            disabled={false}
+            preview={<i className="fas fa-shirt w-[2.4vh] flex-shrink-0 text-center text-[1.4vh] text-primary/70" />}
+            label={changed > 0 ? t('settings_outfit_count').replace('{count}', String(changed)) : t('settings_outfit_none')}
+            onOpen={() => openOutfit(outfit, (next) => onChange(next), disabled === true)}
+        />
+    );
+}
+
 function PedControl({ value, onChange, disabled }: ControlProps) {
     const current = String(value ?? '');
     const known = PED_BY_MODEL.get(current);
@@ -1036,8 +1124,57 @@ function ListControl({ def, value, onChange, disabled }: ControlProps) {
 
     const rowActions = (index: number) => <RowActions disabled={disabled} actions={[deleteAction(index)]} />;
 
+    /**
+     * A weighted row's real odds.
+     *
+     * Weights are only meaningful against each other, and nobody wants to divide
+     * by a running total in their head to find out whether 5000 is common or
+     * rare. The list does the arithmetic and shows the answer, so the number
+     * typed in and the thing it means are on screen at the same time.
+     */
+    const weightKey = def.weight_key;
+
+    const weightTotal = useMemo(() => {
+        if (!weightKey) return 0;
+
+        return rows.reduce((sum, row) => {
+            const weight = Number(readPath(row, weightKey));
+
+            return sum + (Number.isFinite(weight) && weight > 0 ? weight : 0);
+        }, 0);
+    }, [rows, weightKey]);
+
+    const chanceOf = (row: unknown) => {
+        const weight = Number(readPath(row, weightKey!));
+
+        if (!Number.isFinite(weight) || weight <= 0 || weightTotal <= 0) return 0;
+
+        return (weight / weightTotal) * 100;
+    };
+
+    // Small odds are the ones people care about getting right, so they keep
+    // their digits instead of collapsing to a flat 0%.
+    const readChance = (chance: number) => {
+        if (chance === 0) return '0%';
+        if (chance >= 10) return `${chance.toFixed(1)}%`;
+        if (chance >= 1) return `${chance.toFixed(2)}%`;
+        if (chance >= 0.01) return `${chance.toFixed(3)}%`;
+
+        return `${chance.toFixed(5)}%`;
+    };
+
     const fieldGrid = (row: unknown, index: number) => (
         <div className="grid min-w-0 flex-1 gap-x-[1.2vh] gap-y-[0.8vh]" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+            {weightKey && (
+                <div className="flex min-w-0 flex-col gap-[0.4vh]" style={{ gridColumn: '1 / -1' }}>
+                    <div className="flex items-center gap-[0.8vh] rounded-[0.4vh] border border-primary/25 bg-primary/[0.06] px-[0.9vh] py-[0.5vh]">
+                        <i className="fas fa-dice text-[1.1vh] text-primary/70" />
+                        <span className="text-[1.15vh] font-semibold uppercase tracking-wide text-white/40">{t('settings_chance')}</span>
+                        <span className="ml-auto font-mono text-[1.35vh] font-bold text-primary">{readChance(chanceOf(row))}</span>
+                    </div>
+                </div>
+            )}
+
             {itemFields!.map((field) => (
                 <div
                     key={field.key}
@@ -1440,6 +1577,10 @@ export default function SettingControl(props: ControlProps) {
             return <ColorControl {...props} />;
         case 'ped':
             return <PedControl {...props} />;
+        case 'outfit':
+            return <OutfitControl {...props} />;
+        case 'item':
+            return <ItemControl {...props} />;
         case 'coords':
             return <CoordsControl {...props} />;
         case 'blipcolor':

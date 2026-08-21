@@ -77,12 +77,13 @@ local function safeCoords(coords, fallback)
     return vector3(x, y, z)
 end
 
+-- Not a setting. Nobody was ever going to open a settings page to choose
+-- which ped stands in when a script's own model is broken; they want the
+-- broken model reported and something on screen meanwhile.
 local LAST_RESORT_PED = "a_m_m_business_01"
 
 local function fallbackPed()
-    local configured = settings and settings.generic and settings.generic.get("fallback.ped")
-
-    return type(configured) == "string" and configured ~= "" and configured or LAST_RESORT_PED
+    return LAST_RESORT_PED
 end
 
 local function spawnPreview(model, scene, coords, heading)

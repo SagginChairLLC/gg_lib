@@ -47,6 +47,60 @@ local function scanPeers()
     return peers
 end
 
+--------------------------------------------------
+-- MARK: Requirements
+--------------------------------------------------
+
+--- A script declares what it needs; this is where it gets checked, because
+--- this is the side that knows what the server is actually running and what
+--- the inventory actually carries.
+---
+--- The declaration is swapped for the answer: what is missing, and nothing
+--- about what was satisfied. A script whose needs are all met carries no
+--- warnings at all rather than an empty list.
+local function checkNeeds(payload)
+    local requires = payload.requires
+
+    payload.requires = nil
+
+    if type(requires) ~= "table" then return end
+
+    local warnings = {}
+
+    local function miss(kind, need)
+        warnings[#warnings + 1] = {
+            kind     = kind,
+            name     = need.name,
+            why      = need.why,
+            optional = need.optional,
+        }
+    end
+
+    local resources = requires.resources or {}
+
+    for index = 1, #resources do
+        local need = resources[index]
+
+        if GetResourceState(need.name) ~= "started" then miss("resource", need) end
+    end
+
+    -- An inventory that has not finished starting has an empty catalogue, and
+    -- reading that would report every item in every script as missing. Silence
+    -- is right until it is warm: a warning nobody can act on is worse than no
+    -- warning at all.
+    local items = requires.items or {}
+
+    if #items > 0 and gg.items and gg.items.ready and gg.items.ready() then
+        for index = 1, #items do
+            local need = items[index]
+
+            if not gg.items.exists(need.name) then miss("item", need) end
+        end
+    end
+
+    if #warnings > 0 then payload.warnings = warnings end
+end
+
 --- Only the scripts this person may read, each marked with whether they may
 --- also change it. A role scoped to one script sees only that one.
 local function describePeers(source)
@@ -57,6 +111,8 @@ local function describePeers(source)
         if source and not Admins.canView(source, payload.resource) then return end
 
         payload.can_edit = source == nil or Admins.canEdit(source, payload.resource)
+
+        checkNeeds(payload)
 
         scripts[#scripts + 1] = payload
     end

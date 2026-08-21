@@ -7,10 +7,15 @@ import SETTINGS_ACCESS from '@/surfaces/studio/SETTINGS_ACCESS';
 import { fetchNui, isEnvBrowser } from '@/lib/fetchNui';
 import { applyAppearance, hideEditor, showEditor, useLang } from '@/data/useLang';
 import { openSettings, type SettingsScript } from '@/data/useSettings';
+import { usePanel } from '@/data/usePanel';
+import POPUP_PANEL from '@/surfaces/popup/POPUP_PANEL';
+import PANEL_DEMO from '@/surfaces/dev/PANEL_DEMO';
 import { usePopup, type PopupData } from '@/data/usePopup';
 import { applyToolState, useTool } from '@/data/useTool';
 import { applyGizmoState } from '@/data/useGizmo';
 import SETTINGS_EDITOR from '@/surfaces/studio/SETTINGS_EDITOR';
+import OUTFIT_MODE from '@/surfaces/studio/OUTFIT_MODE';
+import { useOutfit } from '@/data/useOutfit';
 import POPUP_BASE from '@/surfaces/popup/POPUP_BASE';
 import TOOL_HUD from '@/surfaces/tool/TOOL_HUD';
 import TOOL_GIZMO from '@/surfaces/tool/TOOL_GIZMO';
@@ -51,6 +56,8 @@ export default function App() {
     const visible = useLang((state) => state.visible);
     const placing = useLang((state) => state.placing);
     const popupEnabled = usePopup((state) => state.enabled);
+    const outfitOpen = useOutfit((state) => state.open);
+    const panelEnabled = usePanel((state) => state.enabled);
     const toolActive = useTool((state) => state.active);
     const accessOpen = useAccess((state) => state.open);
 
@@ -183,7 +190,7 @@ export default function App() {
                         <SETTINGS_ACCESS />
                     </motion.div>
                 )}
-                {visible && !placing && !gameRunning && !accessOpen && (
+                {visible && !placing && !gameRunning && !accessOpen && !outfitOpen && (
                     <motion.div
                         key="settings_editor"
                         initial={{ opacity: 0, scale: 0.97 }}
@@ -196,7 +203,10 @@ export default function App() {
                     </motion.div>
                 )}
             </AnimatePresence>
+            <OUTFIT_MODE />
             <AnimatePresence>{popupEnabled && <POPUP_BASE key="popup_base" />}</AnimatePresence>
+            <AnimatePresence>{panelEnabled && <POPUP_PANEL key="popup_panel" />}</AnimatePresence>
+            {import.meta.env.DEV && isEnvBrowser() && <PANEL_DEMO />}
             <MINIGAME_HOST />
             <PARTICLE_VIEWER />
             <ATTACH_GIZMO />

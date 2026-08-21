@@ -17,7 +17,6 @@ local groups = {
     { id = "general",    label = "General",    icon = "fa-sliders" },
     { id = "popup",      label = "Popups",     icon = "fa-comment",   help = "gg.popup, shared by every script that shows one" },
     { id = "reset",      label = "Daily Reset", icon = "fa-clock",    help = "When daily progress rolls over, for every script that has any" },
-    { id = "fallback",   label = "Fallbacks",  icon = "fa-life-ring", help = "Used when a script's own model fails to load" },
     { id = "screenshot", label = "Screenshots", icon = "fa-camera",    help = "Where vehicle images are captured and where they are stored" },
 }
 
@@ -425,6 +424,32 @@ define("popup.position", {
     },
 })
 
+-- The job panel rides an edge rather than an anchor, so it gets a side and a
+-- height of its own instead of sharing the eight-way anchor above.
+define("popup.panel_side", {
+    group   = "popup",
+    label   = "Job Panel Side",
+    help    = "Which edge of the screen the job panel sits against.",
+    type    = "enum",
+    default = "right",
+    options = {
+        { value = "right", label = "Right" },
+        { value = "left",  label = "Left" },
+    },
+})
+
+define("popup.panel_height", {
+    group   = "popup",
+    label   = "Job Panel Height",
+    help    = "How far down that edge it sits. 0 is the top, 100 the bottom.",
+    type    = "number",
+    default = 50,
+    min     = 5,
+    max     = 95,
+    step    = 1,
+    suffix  = "%",
+})
+
 define("reset.daily_time", {
     group   = "reset",
     label   = "Daily Reset Time",
@@ -440,22 +465,6 @@ define("reset.timezone", {
     type    = "enum",
     default = "CST",
     options = timezone_options,
-})
-
-define("fallback.vehicle", {
-    group   = "fallback",
-    label   = "Fallback Vehicle",
-    help    = "Spawned when a script's configured vehicle model is missing or fails to load.",
-    type    = "string",
-    default = "sultan",
-})
-
-define("fallback.ped", {
-    group   = "fallback",
-    label   = "Fallback Ped",
-    help    = "Spawned when a script's configured ped model is missing or fails to load.",
-    type    = "string",
-    default = "a_m_m_business_01",
 })
 
 --------------------------------------------------

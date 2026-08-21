@@ -79,7 +79,47 @@ local TABLES = {
     ENGINE=InnoDB
     ROW_FORMAT=DYNAMIC;
     ]=],
+    -- The ledger gg.db.migrate keeps for every script. Created here so it
+    -- exists before anything, gg_lib included, wants to write to it.
+    [=[
+    CREATE TABLE IF NOT EXISTS `gg_studio_migrations` (
+        `resource` VARCHAR(64) NOT NULL COLLATE 'utf8mb4_general_ci',
+        `key` VARCHAR(190) NOT NULL COLLATE 'utf8mb4_general_ci',
+        `applied_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (`resource`, `key`) USING BTREE
+    )
+    COLLATE='utf8mb4_general_ci'
+    ENGINE=InnoDB
+    ROW_FORMAT=DYNAMIC;
+    ]=],
 }
+
+--- Run a schema change once, ever.
+---
+--- Deliberately not gg.db.migrate. That module is loaded on demand into a
+--- consuming script's VM, and gg_lib does not import itself, so `gg.db` is
+--- nil here. It also waits on its own readiness, which is the very thing this
+--- thread is in the middle of establishing.
+local function migrate(key, statement)
+    local resource = GetCurrentResourceName()
+
+    local rows = MySQL.query.await("SELECT 1 FROM gg_studio_migrations WHERE resource = ? AND `key` = ? LIMIT 1", { resource, key })
+
+    if rows and rows[1] then return false end
+
+    local ok, err = pcall(statement)
+
+    if not ok then
+        -- Not recorded, so a fixed statement gets another go next start.
+        print(("^1[gg_lib]^7 migration '%s' failed: %s"):format(key, tostring(err)))
+
+        return false
+    end
+
+    MySQL.insert.await("INSERT IGNORE INTO gg_studio_migrations (resource, `key`) VALUES (?, ?)", { resource, key })
+
+    return true
+end
 
 local function addColumn(table_, column, definition)
     local ok = pcall(MySQL.query.await,
@@ -107,7 +147,7 @@ CreateThread(function()
 
     -- The minigames stopped being settings: they are code defaults a script
     -- overrides per call, so anything stored for them is dead weight.
-    gg.db.migrate("drop_minigame_settings", function()
+    migrate("drop_minigame_settings", function()
         MySQL.query.await("DELETE FROM gg_studio_settings WHERE resource = ? AND path LIKE ?", { "gg_studio", "minigames.%" })
     end)
 

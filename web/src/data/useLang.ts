@@ -67,6 +67,42 @@ export const defaultLang: Record<string, string> = {
     settings_generic: 'Generic',
     settings_access: 'Access',
     settings_admin_tools: 'Admin Tools',
+    settings_dev_tools: 'Dev Tools',
+    settings_chance: 'Chance',
+    outfit_male: 'Male',
+    outfit_female: 'Female',
+    outfit_components: 'Clothing',
+    outfit_props: 'Accessories',
+    outfit_columns: 'drawable · texture',
+    outfit_keep: 'keep',
+    outfit_unchanged: 'left alone',
+    outfit_change_on: 'Change this slot',
+    outfit_change_off: 'Leave this slot alone',
+    outfit_title: 'Work Clothes',
+    outfit_cancel: 'Cancel',
+    outfit_leave_title: 'Leave the clothing editor?',
+    outfit_leave_body: 'Keeping puts these clothes on the setting. Discarding puts back what was there when you opened it.',
+    outfit_leave_keep: 'Keep changes',
+    outfit_leave_discard: 'Discard',
+    outfit_leave_back: 'Carry on editing',
+    outfit_keys_turn: 'turn',
+    outfit_keys_zoom: 'zoom',
+    outfit_keys_rise: 'raise',
+    outfit_done: 'Done',
+    settings_outfit_none: 'Nothing changed',
+    settings_outfit_count: '{count} slots changed',
+    outfit_cam_up: 'Camera up',
+    outfit_cam_down: 'Camera down',
+    outfit_cam_in: 'Closer',
+    outfit_cam_out: 'Further back',
+    outfit_drag_hint: 'Drag anywhere to turn',
+    outfit_preview: 'Show on a ped',
+    outfit_previewing: 'Showing',
+    outfit_turn: 'Turn',
+    outfit_preview_help: 'Stands a freemode ped in front of you wearing this. Your own character is never touched.',
+    settings_item_search: 'Choose an item',
+    settings_item_custom: 'not in the inventory',
+    picker_hint_item: 'Or type an item name the inventory has not loaded yet',
     catalogue_items: 'Items',
     catalogue_of: 'of',
     catalogue_item: 'Item',
@@ -116,7 +152,7 @@ export const defaultLang: Record<string, string> = {
     settings_factory_reset_do: 'Reset',
     admins_from_server: 'Server',
     admins_from_server_help: 'In because your server already trusts them:',
-    dev_title: 'Dev Tools',
+    dev_title: 'Editors',
     dev_help: 'For building scripts, not for running them — nothing here is stored',
     dev_open: 'Open',
     particles_title: 'Particle Viewer',
@@ -288,6 +324,15 @@ export const defaultLang: Record<string, string> = {
     admins_role_manage: 'Manages access',
     admins_readonly: 'You can see who has access, but not change it',
     admins_identifier_hint: 'A bare value is read as a license2. Prefix steam:, discord:, fivem: or license: for another type.',
+    settings_expand: 'Fill the screen',
+    settings_collapse: 'Back to a window',
+    settings_warnings_one: 'requirement not met',
+    settings_warnings_many: 'requirements not met',
+    settings_warning_item: 'Item missing from the inventory',
+    settings_warning_resource: 'Resource is not running',
+    settings_warning_optional: 'Optional',
+    settings_warnings_hide: 'Dismiss',
+    settings_warnings_show: 'Show what is missing',
 };
 
 type LangState = {
@@ -295,14 +340,42 @@ type LangState = {
     placing: boolean;
     fade: boolean;
     fadeOpacity: number;
+    /** Filling the screen rather than sitting in a window. */
+    expanded: boolean;
     lang: Record<string, string>;
 };
+
+const EXPANDED_KEY = 'gg_settings_expanded';
+
+// Somewhere to put a preference that is nobody's business but this player's.
+// Any of these can throw -- a private window, site data switched off -- and a
+// window that opens at the wrong size is not worth a broken page.
+function readExpanded(): boolean {
+    try {
+        return window.localStorage.getItem(EXPANDED_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+export function toggleExpanded() {
+    const next = !useLang.getState().expanded;
+
+    useLang.setState({ expanded: next });
+
+    try {
+        window.localStorage.setItem(EXPANDED_KEY, next ? '1' : '0');
+    } catch {
+        // Not being able to remember it is not a reason to refuse to do it.
+    }
+}
 
 export const useLang = create<LangState>(() => ({
     visible: false,
     placing: false,
     fade: true,
     fadeOpacity: 90,
+    expanded: readExpanded(),
     lang: defaultLang,
 }));
 

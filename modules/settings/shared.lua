@@ -172,6 +172,68 @@ end
 
 validators.vehicle = validators.ped
 
+--- An outfit: a body per gender, each with component and prop slots.
+---
+--- A slot with no drawable is kept rather than dropped. Unset means "leave
+--- whatever the player already had", which is a different instruction from
+--- zero, and collapsing the two would shave everyone bald the first time a
+--- uniform was handed out.
+local function outfitSlots(value)
+    if type(value) ~= "table" then return {} end
+
+    local out = {}
+
+    for name, slot in pairs(value) do
+        if type(name) == "string" and type(slot) == "table" then
+            local drawable = tonumber(slot.drawable)
+
+            -- A texture with no garment under it changes nothing, so it is not
+            -- kept: what is stored is exactly what will be applied.
+            if drawable then
+                out[name] = {
+                    drawable = math.floor(drawable),
+                    texture  = math.max(0, math.floor(tonumber(slot.texture) or 0)),
+                }
+            end
+        end
+    end
+
+    return out
+end
+
+validators.outfit = function(_, value)
+    if type(value) ~= "table" then return false, "expected an outfit" end
+
+    local out = {}
+
+    for _, gender in ipairs({ "male", "female" }) do
+        local body = value[gender]
+
+        out[gender] = {
+            components = outfitSlots(type(body) == "table" and body.components or nil),
+            props      = outfitSlots(type(body) == "table" and body.props or nil),
+        }
+    end
+
+    return true, out
+end
+
+--- An inventory name. Same shape as a model name, and deliberately not
+--- checked against the running inventory: a script may be configured before
+--- the item exists, and refusing to store it would make that unfixable.
+validators.item = function(_, value)
+    if type(value) ~= "string" then return false, "expected an item name" end
+
+    local name = value:gsub("%s", "")
+    if name == "" then return false, "cannot be empty" end
+
+    if not name:match("^[%w_]+$") then
+        return false, "is not an item name (letters, numbers and underscores only)"
+    end
+
+    return true, name:lower()
+end
+
 validators.coords = function(_, value)
     local kind = type(value)
 
@@ -347,9 +409,57 @@ end
 -- MARK: Declaration
 --------------------------------------------------
 
+--- What a script needs from the server before it can work: items the running
+--- inventory has to carry, resources that have to be started.
+---
+--- A need is a name, or a table with a reason attached. Optional ones are
+--- worth mentioning but will not stop anything:
+---
+---   settings.requires({
+---       items     = { "bandage", { name = "radio", why = "Called between fares" } },
+---       resources = { "ox_target", { name = "gg_phone", optional = true } },
+---   })
+---
+--- Nothing is checked here. Declaring is this script's job; checking against
+--- the live server is the studio's, because that is what knows the inventory.
+local function normalizeNeeds(list)
+    if type(list) ~= "table" then return {} end
+
+    local out = {}
+
+    for index = 1, #list do
+        local need = list[index]
+
+        if type(need) == "string" and need ~= "" then
+            out[#out + 1] = { name = need }
+        elseif type(need) == "table" and type(need.name) == "string" and need.name ~= "" then
+            out[#out + 1] = {
+                name     = need.name,
+                why      = type(need.why) == "string" and need.why or nil,
+                optional = need.optional == true or nil,
+            }
+        end
+    end
+
+    return out
+end
+
+function settings.requires(spec)
+    settings.info.requires = {
+        items     = normalizeNeeds(spec and spec.items),
+        resources = normalizeNeeds(spec and spec.resources),
+    }
+
+    return settings.info.requires
+end
+
 function settings.script(info)
     for key, value in pairs(info or {}) do
-        settings.info[key] = value
+        if key == "requires" then
+            settings.requires(value)
+        else
+            settings.info[key] = value
+        end
     end
 
     return settings.info
@@ -430,8 +540,27 @@ end
 -- MARK: Table Shapes
 --------------------------------------------------
 
+--- Where money goes. Every framework bridge speaks these three names and
+--- maps them to whatever the framework calls them, so a setting that picks
+--- an account uses this rather than listing its own and forgetting one.
+settings.accounts = {
+    { value = "cash",  label = "Cash" },
+    { value = "bank",  label = "Bank" },
+    { value = "black", label = "Black Money" },
+}
+
+
 settings.shape = {}
 settings.column = {}
+--- A field that picks an account, ready to drop into a list or an object.
+function settings.column.account(key, label)
+    return {
+        key     = key or "account",
+        label   = label or "Account",
+        type    = "enum",
+        options = settings.accounts,
+    }
+end
 
 local function shaped(base, def)
     local out = {}
@@ -749,6 +878,7 @@ function settings.describe()
             item_type   = def.item_type,
             item_default= def.item_default,
             min_items   = def.min_items,
+            weight_key  = def.weight_key,
             max_items   = def.max_items,
             min         = def.min,
             max         = def.max,
@@ -793,5 +923,6 @@ function settings.describe()
         version  = GetResourceMetadata(settings.info.id, "version", 0),
         groups   = groups,
         entries  = entries,
+        requires = settings.info.requires,
     }
 end

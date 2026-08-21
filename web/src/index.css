@@ -16,21 +16,16 @@
     padding: 0;
     box-sizing: border-box;
     user-select: none;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(var(--primary-rgb), 0.9) transparent;
+    /* Drawn over the game, so a scrollbar is a visible seam. Content still
+       scrolls; the bar is never painted. Same policy as gg_taxijob. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
 *::-webkit-scrollbar {
-    width: 3px;
-}
-
-*::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-*::-webkit-scrollbar-thumb {
-    background: rgba(var(--primary-rgb), 0.9);
-    border-radius: 1px;
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 ::selection {

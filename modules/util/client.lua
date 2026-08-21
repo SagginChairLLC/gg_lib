@@ -1,7 +1,19 @@
 gg.util = gg.util or {}
 
+-- Stood in when a script's own model will not load. Deliberately not a
+-- setting: what an owner needs is to be told which model is broken, not a
+-- page for choosing what replaces it.
+gg.util.FALLBACK_VEHICLE = "sultan"
+gg.util.FALLBACK_PED     = "a_m_m_business_01"
+
+--- True when the model is loaded and ready to spawn.
+---
+--- A model that does not exist used to fail silently, which is how a typo in
+--- a config turns into an hour of wondering why nothing spawns.
 gg.util.loadModel = function(model)
     if not IsModelValid(model) then
+        print(("^3[gg_lib]^7 model '%s' is not in this game"):format(tostring(model)))
+
         return false
     end
 
@@ -10,11 +22,33 @@ gg.util.loadModel = function(model)
     while not HasModelLoaded(model) do
         Wait(100)
         if GetGameTimer() > timeout then
+            print(("^3[gg_lib]^7 model '%s' would not load in time"):format(tostring(model)))
+
             return false
         end
     end
 
     return true
+end
+
+--- The model asked for, or the stand-in when it will not load. Nil when even
+--- the stand-in fails, which means the game files are wrong rather than the
+--- script.
+---
+--- Use this where a broken model should not stop the job: the player still
+--- gets something to interact with, and the console says what was wrong.
+gg.util.loadModelOr = function(model, fallback)
+    if gg.util.loadModel(model) then return model end
+
+    fallback = fallback or gg.util.FALLBACK_PED
+
+    if model ~= fallback and gg.util.loadModel(fallback) then
+        print(("^3[gg_lib]^7 using '%s' in place of '%s'"):format(tostring(fallback), tostring(model)))
+
+        return fallback
+    end
+
+    return nil
 end
 
 gg.util.loadAnimDict = function(animDict)

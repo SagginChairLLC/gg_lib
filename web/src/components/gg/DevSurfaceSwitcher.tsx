@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useLang } from '@/data/useLang';
 import { usePopup } from '@/data/usePopup';
+import { usePanel } from '@/data/usePanel';
 import { applyDevSurface, writeDevSurface, type DevSurfaceId } from '@/lib/devSurface';
 
 type DevRow = { id: DevSurfaceId; label: string };
@@ -10,16 +11,20 @@ const SETTINGS_ROWS: DevRow[] = [{ id: 'editor', label: 'Script Editor' }];
 
 const POPUP_ROWS: DevRow[] = [{ id: 'popup', label: 'Message Popup' }];
 
+const PANEL_ROWS: DevRow[] = [{ id: 'panel', label: 'Job Popup' }];
+
 export default function DevSurfaceSwitcher() {
     const [open, setOpen] = useState(false);
     const visible = useLang((state) => state.visible);
     const popupEnabled = usePopup((state) => state.enabled);
+    const panelEnabled = usePanel((state) => state.enabled);
 
     let activeId: DevSurfaceId = 'none';
     if (visible) activeId = 'editor';
     else if (popupEnabled) activeId = 'popup';
+    else if (panelEnabled) activeId = 'panel';
 
-    const activeLabel = [...SETTINGS_ROWS, ...POPUP_ROWS].find((row) => row.id === activeId)?.label ?? 'Hidden';
+    const activeLabel = [...SETTINGS_ROWS, ...POPUP_ROWS, ...PANEL_ROWS].find((row) => row.id === activeId)?.label ?? 'Hidden';
 
     useEffect(() => {
         writeDevSurface(activeId);
@@ -73,6 +78,7 @@ export default function DevSurfaceSwitcher() {
                     >
                         {renderGroup('Settings', SETTINGS_ROWS)}
                         {renderGroup('Popup', POPUP_ROWS)}
+                        {renderGroup('Job Panel', PANEL_ROWS)}
 
                         <div className="mt-2 border-t border-zinc-700/70 pt-1.5">
                             <button

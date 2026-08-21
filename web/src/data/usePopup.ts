@@ -14,6 +14,8 @@ export type PopupData = {
     variant: PopupVariant;
     /** Drawn as a key cap on the keybind variant; ignored by the others. */
     keybind: string;
+    /** The raising script's accent colour. Empty means gg_lib's own. */
+    accent: string;
 };
 
 export const usePopup = create<PopupData>(() => ({
@@ -22,4 +24,5 @@ export const usePopup = create<PopupData>(() => ({
     position: 'bottom-middle',
     variant: 'info',
     keybind: '',
+    accent: '',
 }));
